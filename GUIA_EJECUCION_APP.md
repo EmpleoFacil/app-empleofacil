@@ -64,8 +64,8 @@ Si no aparece el dispositivo:
 En terminal:
 
 ```bash
-git clone <URL_DEL_REPOSITORIO>
-cd <NOMBRE_DEL_REPOSITORIO>
+git clone https://github.com/EmpleoFacil/app-empleofacil.git
+cd app-empleofacil
 flutter pub get
 ```
 

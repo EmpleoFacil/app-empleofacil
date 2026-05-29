@@ -2,6 +2,13 @@
 
 A new Flutter project.
 
+## Guía para correr la app desde cero
+
+Revisa el archivo [`GUIA_EJECUCION_APP.md`](./GUIA_EJECUCION_APP.md), donde se explica:
+- cómo instalar Flutter,
+- cómo configurar un emulador Android,
+- y cómo ejecutar la app en tu celular físico.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.

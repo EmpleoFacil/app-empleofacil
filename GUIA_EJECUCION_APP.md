@@ -65,7 +65,7 @@ En terminal:
 
 ```bash
 git clone <URL_DEL_REPOSITORIO>
-cd app-empleofacil
+cd <NOMBRE_DEL_REPOSITORIO>
 flutter pub get
 ```
 

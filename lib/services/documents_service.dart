@@ -1,5 +1,7 @@
 import '../models/document.dart';
 import 'api_service.dart';
+import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 
 class DocumentsService {
   final ApiService _api;
@@ -20,12 +22,15 @@ class DocumentsService {
 
   Future<CandidateDocument> upload({
     required String type,
-    required String fileUrl,
+    required http.MultipartFile file,
+    bool replace = true,
   }) async {
-    final response = await _api.post('/documents/upload', {
-      'type': type,
-      'fileUrl': fileUrl,
-    });
+    final request = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/documents/upload'));
+    request.files.add(file);
+    request.fields['type'] = type;
+    request.fields['replace'] = replace.toString();
+
+    final response = await _api.postForm('/documents/upload', request);
     return CandidateDocument.fromJson(response);
   }
 }

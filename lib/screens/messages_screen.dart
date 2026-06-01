@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../services/api_service.dart';
+import '../services/messages_service.dart';
 import '../widgets/bottom_nav_bar.dart';
 
 class MessagesScreen extends StatefulWidget {
@@ -26,12 +28,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
     setState(() => _isLoading = true);
     
     try {
-      final api = ApiService();
-      final response = await api.get('/messages/me');
+      final api = context.read<ApiService>();
+      final messagesService = MessagesService(api);
+      final response = await messagesService.getMessages(filter: _filter);
       
       if (mounted) {
         setState(() {
-          _messages = response as List;
+          _messages = response;
           _isLoading = false;
         });
       }
@@ -103,31 +106,40 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 3),
+      bottomNavigationBar: const BottomNavBar(currentIndex: 2),
     );
   }
 
   Widget _buildFilterChips() {
-    return Row(
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: [
         _FilterChip(
           label: 'Todos',
           isSelected: _filter == 'all',
-          onTap: () => setState(() => _filter = 'all'),
+          onTap: () {
+            setState(() => _filter = 'all');
+            _loadMessages();
+          },
         ),
-        const SizedBox(width: 8),
         _FilterChip(
           label: 'Importantes',
           icon: Icons.star_outline,
           isSelected: _filter == 'important',
-          onTap: () => setState(() => _filter = 'important'),
+          onTap: () {
+            setState(() => _filter = 'important');
+            _loadMessages();
+          },
         ),
-        const SizedBox(width: 8),
         _FilterChip(
           label: 'Sin leer',
           icon: Icons.mark_email_unread_outlined,
           isSelected: _filter == 'unread',
-          onTap: () => setState(() => _filter = 'unread'),
+          onTap: () {
+            setState(() => _filter = 'unread');
+            _loadMessages();
+          },
         ),
       ],
     );
@@ -225,6 +237,17 @@ class _MessageCard extends StatelessWidget {
     }
   }
 
+  Color get _statusColor {
+    switch (message['status']) {
+      case 'responded':
+        return AppColors.success;
+      case 'pending':
+        return const Color(0xFFFFA000);
+      default:
+        return AppColors.primary;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -234,26 +257,35 @@ class _MessageCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: _isUnread ? AppColors.primary : AppColors.border,
-            width: _isUnread ? 2 : 1,
+            color: _isUnread ? AppColors.primary.withOpacity(0.35) : AppColors.border,
+            width: _isUnread ? 1.4 : 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                color: AppColors.primary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 message['type'] == 'interview_invitation' 
-                    ? Icons.event 
-                    : Icons.description,
+                    ? Icons.shield_outlined
+                    : message['type'] == 'document_request'
+                        ? Icons.cleaning_services_outlined
+                        : Icons.inventory_2_outlined,
                 color: AppColors.primary,
               ),
             ),
@@ -269,44 +301,43 @@ class _MessageCard extends StatelessWidget {
                           message['company']?['name'] ?? 'Empresa',
                           style: TextStyle(
                             fontSize: 15,
-                            fontWeight: _isUnread ? FontWeight.w600 : FontWeight.w500,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _statusColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            _isUnread ? 'Nuevo' : _typeLabel,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _statusColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),
-                      if (_isUnread)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'Nuevo',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
                     ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _typeLabel,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     message['body'] ?? '',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 13,
+                      height: 1.35,
                       color: AppColors.textSecondary,
                     ),
                   ),
@@ -324,20 +355,32 @@ class _MessageCard extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                const SizedBox(height: 8),
                 if (message['status'] == 'responded')
                   Container(
                     margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
+                      color: AppColors.success.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       'Respondido',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 11,
                         color: AppColors.success,
+                        fontWeight: FontWeight.w700,
                       ),
+                    ),
+                  ),
+                if (_isUnread)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
                     ),
                   ),
               ],

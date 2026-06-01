@@ -24,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _applicationsInReview = 0;
   bool _showSaved = false;
   List<Job> _savedJobs = [];
+  String? _firstName;
 
   @override
   void initState() {
@@ -34,16 +35,31 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
+    final authProvider = context.read<AuthProvider>();
+    await authProvider.init();
     final jobsProvider = context.read<JobsProvider>();
     await jobsProvider.loadCategories();
     await jobsProvider.loadRecommendedJobs();
+    await _loadCandidateName();
     await _loadUnreadCount();
     await _loadApplicationsSummary();
   }
 
+  Future<void> _loadCandidateName() async {
+    try {
+      final api = context.read<ApiService>();
+      final response = await api.get('/candidates/me');
+      final fullName = (response?['fullName'] ?? '') as String;
+      final first = fullName.isNotEmpty ? fullName.split(' ').first : 'Hola';
+      if (mounted) setState(() => _firstName = first);
+    } catch (_) {
+      // Silenciar error de nombre para no bloquear home
+    }
+  }
+
   Future<void> _loadUnreadCount() async {
     try {
-      final api = ApiService();
+      final api = context.read<ApiService>();
       final authProvider = context.read<AuthProvider>();
       if (authProvider.isAuthenticated) {
         final messagesService = MessagesService(api);
@@ -55,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadApplicationsSummary() async {
     try {
-      final api = ApiService();
+      final api = context.read<ApiService>();
       final applicationsService = ApplicationsService(api);
       final summary = await applicationsService.getStatusSummary();
       if (mounted) {
@@ -66,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadSavedJobs() async {
     try {
-      final api = ApiService();
+      final api = context.read<ApiService>();
       final savedJobsService = SavedJobsService(api);
       final jobs = await savedJobsService.getMySavedJobs();
       if (mounted) setState(() => _savedJobs = jobs);
@@ -151,6 +167,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: AppColors.primary,
                 ),
               ),
+              const SizedBox(height: 6),
+              Text(
+                _firstName != null ? 'Hola, $_firstName' : 'Hola',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Estas vacantes podrían interesarte',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ],
           ),
           Stack(
@@ -192,6 +224,13 @@ class _HomeScreenState extends State<HomeScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: TextField(
         controller: _searchController,
@@ -222,7 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 final isSelected = jobsProvider.selectedCategoryId == category.id;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
+                  child: ChoiceChip(
                     selected: isSelected,
                     label: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -232,15 +271,20 @@ class _HomeScreenState extends State<HomeScreen> {
                           size: 16,
                           color: isSelected ? Colors.white : AppColors.primary,
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 6),
                         Text(category.name),
                       ],
                     ),
                     labelStyle: TextStyle(
                       color: isSelected ? Colors.white : AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
                     ),
                     backgroundColor: Colors.white,
                     selectedColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(color: isSelected ? AppColors.primary : AppColors.border),
+                    ),
                     onSelected: (_) {
                       jobsProvider.filterByCategory(
                         isSelected ? null : category.id,
@@ -249,16 +293,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               }),
-              FilterChip(
+              ChoiceChip(
+                selected: false,
                 label: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
+                  children: const [
                     Icon(Icons.tune, size: 16, color: AppColors.primary),
-                    const SizedBox(width: 4),
-                    const Text('Más'),
+                    SizedBox(width: 6),
+                    Text('Más'),
                   ],
                 ),
                 backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: const BorderSide(color: AppColors.border),
+                ),
                 onSelected: (_) => _showFiltersSheet(),
               ),
             ],
@@ -430,22 +479,63 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _JobCard extends StatelessWidget {
+class _JobCard extends StatefulWidget {
   final Job job;
 
   const _JobCard({required this.job});
 
   @override
+  State<_JobCard> createState() => _JobCardState();
+}
+
+class _JobCardState extends State<_JobCard> {
+  bool _isSaving = false;
+
+  Future<void> _toggleSave() async {
+    setState(() => _isSaving = true);
+    try {
+      final api = context.read<ApiService>();
+      final savedJobsService = SavedJobsService(api);
+      
+      if (widget.job.isSaved) {
+        await savedJobsService.unsave(widget.job.id);
+      } else {
+        await savedJobsService.save(widget.job.id);
+      }
+      
+      // Refresh jobs to update isSaved status
+      final jobsProvider = context.read<JobsProvider>();
+      await jobsProvider.loadRecommendedJobs(categoryId: jobsProvider.selectedCategoryId);
+      
+      if (mounted) setState(() => _isSaving = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.go('/jobs/${job.id}'),
+      onTap: () => context.go('/jobs/${widget.job.id}'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -458,7 +548,7 @@ class _JobCard extends StatelessWidget {
                   height: 48,
                   decoration: BoxDecoration(
                     color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
                     child: Icon(Icons.business, color: AppColors.primary),
@@ -470,7 +560,7 @@ class _JobCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        job.title,
+                        widget.job.title,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -478,7 +568,7 @@ class _JobCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        job.company?.name ?? '',
+                        widget.job.company?.name ?? '',
                         style: TextStyle(
                           fontSize: 14,
                           color: AppColors.textSecondary,
@@ -487,31 +577,29 @@ class _JobCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (job.hasApplied)
+                if (widget.job.hasApplied)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
+                      color: const Color(0xFFE7F5EF),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       'Ya aplicaste',
                       style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   )
                 else
                   IconButton(
                     icon: Icon(
-                      job.isSaved ? Icons.bookmark : Icons.bookmark_border,
-                      color: job.isSaved ? AppColors.primary : AppColors.textSecondary,
+                      widget.job.isSaved ? Icons.bookmark : Icons.bookmark_border,
+                      color: widget.job.isSaved ? AppColors.primary : AppColors.textSecondary,
                     ),
-                    onPressed: () {
-                      // Toggle save
-                    },
+                    onPressed: _isSaving ? null : _toggleSave,
                   ),
               ],
             ),
@@ -521,7 +609,7 @@ class _JobCard extends StatelessWidget {
                 Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
                 const SizedBox(width: 4),
                 Text(
-                  job.city ?? 'Nicaragua',
+                  widget.job.city ?? 'Nicaragua',
                   style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                 ),
                 const SizedBox(width: 16),
@@ -529,7 +617,7 @@ class _JobCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    job.salaryRange,
+                    widget.job.salaryRange,
                     style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                     overflow: TextOverflow.ellipsis,
                   ),

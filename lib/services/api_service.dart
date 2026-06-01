@@ -38,6 +38,15 @@ class ApiService {
     return _handleResponse(response);
   }
 
+  Future<dynamic> postForm(String endpoint, http.MultipartRequest request) async {
+    request.headers.addAll(_headers);
+    request.headers.remove('Content-Type');
+
+    final streamed = await request.send().timeout(ApiConfig.timeout);
+    final response = await http.Response.fromStream(streamed);
+    return _handleResponse(response);
+  }
+
   Future<dynamic> post(String endpoint, Map<String, dynamic> body) async {
     final response = await http
         .post(

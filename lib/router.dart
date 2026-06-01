@@ -12,6 +12,7 @@ import 'screens/application_detail_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/message_detail_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/search_results_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/welcome',
@@ -41,6 +42,13 @@ final router = GoRouter(
       builder: (context, state) => JobDetailScreen(
         jobId: state.pathParameters['id']!,
       ),
+    ),
+    GoRoute(
+      path: '/jobs/search',
+      builder: (context, state) {
+        final query = state.uri.queryParameters['q'] ?? '';
+        return SearchResultsScreen(query: query);
+      },
     ),
     GoRoute(
       path: '/documents',

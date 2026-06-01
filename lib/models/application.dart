@@ -24,7 +24,15 @@ class Application {
   factory Application.fromJson(Map<String, dynamic> json) {
     final interviews = json['interviews'] as List?;
     final messages = json['messages'] as List?;
-    
+    final embeddedInterview = json['nextInterview'] ?? json['interview'];
+
+    Interview? nextInterview;
+    if (embeddedInterview is Map<String, dynamic>) {
+      nextInterview = Interview.fromJson(embeddedInterview);
+    } else if (interviews != null && interviews.isNotEmpty) {
+      nextInterview = Interview.fromJson(interviews.first as Map<String, dynamic>);
+    }
+
     return Application(
       id: json['id'] as String,
       jobId: json['jobId'] as String,
@@ -32,9 +40,7 @@ class Application {
       status: json['status'] as String,
       appliedAt: DateTime.parse(json['appliedAt'] as String),
       job: json['job'] != null ? Job.fromJson(json['job']) : null,
-      nextInterview: interviews != null && interviews.isNotEmpty 
-          ? Interview.fromJson(interviews.first) 
-          : null,
+      nextInterview: nextInterview,
       latestMessage: messages != null && messages.isNotEmpty 
           ? Message.fromJson(messages.first) 
           : null,

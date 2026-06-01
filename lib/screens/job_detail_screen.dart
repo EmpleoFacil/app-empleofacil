@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../models/job.dart';
 import '../services/api_service.dart';
 import '../services/applications_service.dart';
 import '../services/saved_jobs_service.dart';
+import '../services/documents_service.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final String jobId;
@@ -22,6 +24,15 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   bool _hasApplied = false;
   bool _isApplying = false;
 
+  bool _handleBack() {
+    if (Navigator.of(context).canPop()) {
+      context.pop();
+    } else {
+      context.go('/home');
+    }
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -30,7 +41,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
   Future<void> _loadJob() async {
     try {
-      final api = ApiService();
+      final api = context.read<ApiService>();
       final response = await api.get('/jobs/${widget.jobId}');
       final job = Job.fromJson(response);
       
@@ -57,7 +68,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
   Future<void> _toggleSave() async {
     try {
-      final api = ApiService();
+      final api = context.read<ApiService>();
       final savedJobsService = SavedJobsService(api);
       
       if (_isSaved) {
@@ -80,7 +91,25 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     setState(() => _isApplying = true);
     
     try {
-      final api = ApiService();
+      final api = context.read<ApiService>();
+      
+      // Check for required documents
+      final documentsService = DocumentsService(api);
+      final myDocuments = await documentsService.getMyDocuments();
+      final documentTypes = await documentsService.getDocumentTypes();
+      
+      final missingDocuments = documentTypes.where((type) {
+        return !myDocuments.any((doc) => doc.type == type.id && doc.status == 'approved');
+      }).toList();
+      
+      if (missingDocuments.isNotEmpty) {
+        if (mounted) {
+          setState(() => _isApplying = false);
+          _showMissingDocumentsDialog(missingDocuments);
+        }
+        return;
+      }
+      
       final applicationsService = ApplicationsService(api);
       final application = await applicationsService.apply(widget.jobId);
       
@@ -147,34 +176,103 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text('Empleo'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(
-              _isSaved ? Icons.bookmark : Icons.bookmark_border,
-              color: _isSaved ? AppColors.primary : null,
+  void _showMissingDocumentsDialog(List<dynamic> missingDocuments) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFA000).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.warning, color: Color(0xFFFFA000), size: 48),
             ),
-            onPressed: _toggleSave,
+            const SizedBox(height: 16),
+            const Text(
+              'Documentos faltantes',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Para postularte necesitas subir los siguientes documentos:',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            ...missingDocuments.map((doc) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.circle, size: 8, color: Color(0xFFFFA000)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      doc['label'] ?? 'Documento',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            )),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              context.go('/documents');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Subir documentos'),
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _job == null
-              ? const Center(child: Text('Vacante no encontrada'))
-              : _buildContent(),
-      bottomNavigationBar: _job != null ? _buildBottomBar() : null,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async => _handleBack(),
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _handleBack,
+          ),
+          title: const Text('Empleo'),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: Icon(
+                _isSaved ? Icons.bookmark : Icons.bookmark_border,
+                color: _isSaved ? AppColors.primary : null,
+              ),
+              onPressed: _toggleSave,
+            ),
+          ],
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _job == null
+                ? const Center(child: Text('Vacante no encontrada'))
+                : _buildContent(),
+        bottomNavigationBar: _job != null ? _buildBottomBar() : null,
+      ),
     );
   }
 

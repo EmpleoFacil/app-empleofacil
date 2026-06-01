@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../models/application.dart';
 import '../services/api_service.dart';
@@ -26,7 +27,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
 
   Future<void> _loadData() async {
     try {
-      final api = ApiService();
+      final api = context.read<ApiService>();
       final applicationsService = ApplicationsService(api);
       
       final summary = await applicationsService.getSummary();
@@ -64,36 +65,31 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
               onRefresh: _loadData,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Mis postulaciones',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.headlineMedium,
                     ),
-                    
-                    const SizedBox(height: 20),
-                    
-                    // Summary cards
+                    const SizedBox(height: 6),
+                    Text(
+                      'Resumen de tu proceso',
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                    ),
+                    const SizedBox(height: 22),
                     if (_summary != null) _buildSummaryCards(),
-                    
                     const SizedBox(height: 24),
-                    
-                    // Entrevista programada (si hay)
                     ..._buildScheduledInterviews(),
-                    
-                    // Otras postulaciones
                     if (_applications.isNotEmpty) ...[
                       const Text(
                         'Otras postulaciones',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                       ),
                       const SizedBox(height: 12),
                       ..._applications.map((app) => _ApplicationCard(application: app)),
-                    ],
-                    
-                    if (_applications.isEmpty)
+                    ] else ...[
                       Center(
                         child: Padding(
                           padding: const EdgeInsets.all(32),
@@ -108,7 +104,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                                   color: AppColors.textSecondary,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 12),
                               ElevatedButton(
                                 onPressed: () => context.go('/home'),
                                 child: const Text('Buscar vacantes'),
@@ -117,13 +113,13 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                           ),
                         ),
                       ),
-                    
+                    ],
                     const SizedBox(height: 100),
                   ],
                 ),
               ),
             ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 2),
+      bottomNavigationBar: const BottomNavBar(currentIndex: 1),
     );
   }
 
@@ -134,6 +130,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
           child: _SummaryCard(
             value: _summary!.enRevision,
             label: 'En revisión',
+            color: const Color(0xFFEAF2FF),
+            textColor: AppColors.primary,
             icon: Icons.visibility_outlined,
           ),
         ),
@@ -142,6 +140,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
           child: _SummaryCard(
             value: _summary!.entrevista,
             label: 'Entrevista',
+            color: const Color(0xFFEAF8EF),
+            textColor: AppColors.success,
             icon: Icons.event_outlined,
           ),
         ),
@@ -150,6 +150,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
           child: _SummaryCard(
             value: _summary!.noSeleccionado,
             label: 'No seleccionado',
+            color: const Color(0xFFFEECEC),
+            textColor: AppColors.error,
             icon: Icons.close_outlined,
           ),
         ),
@@ -180,44 +182,48 @@ class _SummaryCard extends StatelessWidget {
   final int value;
   final String label;
   final IconData icon;
+  final Color color;
+  final Color textColor;
 
   const _SummaryCard({
     required this.value,
     required this.label,
     required this.icon,
+    required this.color,
+    required this.textColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        color: color,
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         children: [
           Text(
             '$value',
             style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: textColor,
             ),
           ),
           const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 14, color: AppColors.textSecondary),
-              const SizedBox(width: 4),
+              Icon(icon, size: 14, color: textColor),
+              const SizedBox(width: 6),
               Flexible(
                 child: Text(
                   label,
                   style: TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -244,8 +250,15 @@ class _InterviewCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary, width: 2),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withOpacity(0.25), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,13 +353,6 @@ class _InterviewCard extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () => context.go('/applications/${application.id}'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
               child: const Text('Ver detalle'),
             ),
           ),
@@ -371,7 +377,7 @@ class _ApplicationCard extends StatelessWidget {
     switch (application.status) {
       case 'applied':
       case 'reviewing':
-        return Colors.orange;
+        return AppColors.warning;
       case 'preselected':
       case 'interview_scheduled':
       case 'interview_confirmed':
@@ -397,6 +403,13 @@ class _ApplicationCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Row(
           children: [

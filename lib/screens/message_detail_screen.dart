@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../services/api_service.dart';
+import '../services/messages_service.dart';
+import '../widgets/bottom_nav_bar.dart';
 
 class MessageDetailScreen extends StatefulWidget {
   final String messageId;
@@ -18,6 +21,16 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
   String? _selectedResponse;
   final _responseController = TextEditingController();
   bool _isSending = false;
+  List<Map<String, dynamic>> _responses = [];
+
+  bool _handleBack() {
+    if (Navigator.of(context).canPop()) {
+      context.pop();
+    } else {
+      context.go('/messages');
+    }
+    return false;
+  }
 
   @override
   void initState() {
@@ -27,18 +40,21 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
 
   Future<void> _loadMessage() async {
     try {
-      final api = ApiService();
+      final api = context.read<ApiService>();
+      final messagesService = MessagesService(api);
       final response = await api.get('/messages/${widget.messageId}');
       
       // Mark as read
       if (response['status'] == 'sent' || response['status'] == 'unread') {
-        await api.patch('/messages/${widget.messageId}/read', {});
+        await messagesService.markRead(widget.messageId);
       }
       
       if (mounted) {
         setState(() {
           _message = response as Map<String, dynamic>;
           _isLoading = false;
+          final list = (_message?['responses'] as List?) ?? [];
+          _responses = list.whereType<Map<String, dynamic>>().toList();
         });
       }
     } catch (e) {
@@ -62,14 +78,26 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
     setState(() => _isSending = true);
 
     try {
-      final api = ApiService();
+      final api = context.read<ApiService>();
       await api.post('/messages/${widget.messageId}/respond', {
         'responseType': _selectedResponse,
         'body': _responseController.text,
       });
 
       if (mounted) {
-        _showSuccessDialog();
+        setState(() {
+          _responses.add({
+            'responseType': _selectedResponse,
+            'body': _responseController.text,
+            'createdAt': DateTime.now().toIso8601String(),
+            'from': 'me',
+          });
+          _selectedResponse = null;
+          _responseController.clear();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Respuesta enviada')),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -82,51 +110,89 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
     }
   }
 
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.success.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.check, color: AppColors.success, size: 48),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              '¡Respuesta enviada!',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tu respuesta ha sido enviada correctamente.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.go('/messages');
-            },
-            child: const Text('Volver a mensajes'),
+  Widget _buildResponsesSection() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Respuestas',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
-          if (_message?['applicationId'] != null)
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                context.go('/applications/${_message!['applicationId']}');
-              },
-              child: const Text('Ver postulación'),
-            ),
+          const SizedBox(height: 8),
+          ..._responses.map((r) {
+            final fromMe = r['from'] == 'me';
+            final createdAt = r['createdAt'] as String?;
+            final time = createdAt != null && createdAt.isNotEmpty
+                ? _formatTime(createdAt)
+                : '';
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: fromMe ? AppColors.primary.withOpacity(0.06) : AppColors.background,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    r['responseType'] == 'confirm'
+                        ? Icons.check_circle
+                        : r['responseType'] == 'decline'
+                            ? Icons.cancel
+                            : Icons.help_outline,
+                    color: r['responseType'] == 'confirm'
+                        ? AppColors.success
+                        : r['responseType'] == 'decline'
+                            ? AppColors.error
+                            : Colors.orange,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if ((r['body'] as String?)?.isNotEmpty == true)
+                          Text(
+                            r['body'],
+                            style: const TextStyle(fontSize: 14, height: 1.4),
+                            softWrap: true,
+                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              r['responseType'] == 'confirm'
+                                  ? 'Confirmado'
+                                  : r['responseType'] == 'decline'
+                                      ? 'No asistiré'
+                                      : 'Necesita ayuda',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            Text(
+                              time,
+                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            );
+          })
         ],
       ),
     );
@@ -134,22 +200,26 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+    return WillPopScope(
+      onWillPop: () async => _handleBack(),
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _handleBack,
+          ),
+          title: const Text('Empleo'),
+          centerTitle: true,
         ),
-        title: const Text('Empleo'),
-        centerTitle: true,
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _message == null
+                ? const Center(child: Text('Mensaje no encontrado'))
+                : _buildContent(),
+        bottomNavigationBar: const BottomNavBar(currentIndex: 2),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _message == null
-              ? const Center(child: Text('Mensaje no encontrado'))
-              : _buildContent(),
     );
   }
 
@@ -236,7 +306,11 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
           Text(
             msg['body'] ?? '',
             style: const TextStyle(fontSize: 15, height: 1.6),
+            softWrap: true,
           ),
+
+          const SizedBox(height: 16),
+          if (_responses.isNotEmpty) _buildResponsesSection(),
           
           // Interview details if applicable
           if (isInterview && msg['application']?['job'] != null) ...[

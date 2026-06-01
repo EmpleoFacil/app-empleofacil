@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import '../config/theme.dart';
 import '../models/document.dart';
 import '../services/api_service.dart';
@@ -16,6 +20,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   List<DocumentType> _documentTypes = [];
   List<CandidateDocument> _myDocuments = [];
   bool _isLoading = true;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -25,7 +30,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   Future<void> _loadData() async {
     try {
-      final api = ApiService();
+      final api = context.read<ApiService>();
       final documentsService = DocumentsService(api);
       
       final types = await documentsService.getDocumentTypes();
@@ -85,7 +90,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               subtitle: const Text('Usa la cámara para capturar el documento'),
               onTap: () {
                 Navigator.pop(context);
-                _uploadDocument(type, 'camera');
+                _pickAndUpload(type, ImageSource.camera);
               },
             ),
             const SizedBox(height: 8),
@@ -102,7 +107,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               subtitle: const Text('Selecciona un PDF, JPG o PNG'),
               onTap: () {
                 Navigator.pop(context);
-                _uploadDocument(type, 'file');
+                _pickAndUpload(type, ImageSource.gallery);
               },
             ),
             const SizedBox(height: 16),
@@ -112,30 +117,68 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     );
   }
 
-  Future<void> _uploadDocument(DocumentType type, String source) async {
-    // TODO: Implement actual file upload with image_picker
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Función de subida desde $source en desarrollo')),
-    );
+  Future<void> _pickAndUpload(DocumentType type, ImageSource source) async {
+    try {
+      final picked = await _picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 2000,
+      );
+      if (picked == null) return;
+
+      final file = await http.MultipartFile.fromPath('file', picked.path, filename: picked.name);
+      final api = context.read<ApiService>();
+      final documentsService = DocumentsService(api);
+      await documentsService.upload(type: type.id, file: file, replace: true);
+      await _loadData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Documento enviado (${source == ImageSource.camera ? 'foto' : 'archivo'})')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al subir documento: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+    return WillPopScope(
+      onWillPop: () async {
+        if (Navigator.of(context).canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
+          ),
+          title: const Text('Empleo'),
+          centerTitle: true,
         ),
-        title: const Text('Empleo'),
-        centerTitle: true,
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _buildContent(),
+        bottomNavigationBar: _buildBottomBar(),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildContent(),
-      bottomNavigationBar: _buildBottomBar(),
     );
   }
 
@@ -167,17 +210,48 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           }),
           
           const SizedBox(height: 24),
-          
-          // Nota de seguridad
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _documentTypes.isNotEmpty
+                      ? () => _showUploadOptions(_documentTypes.first)
+                      : null,
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  label: const Text('Tomar foto'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _documentTypes.isNotEmpty
+                      ? () => _showUploadOptions(_documentTypes.first)
+                      : null,
+                  icon: const Icon(Icons.upload_file_outlined),
+                  label: const Text('Subir archivo'),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.primary.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
-                Icon(Icons.shield_outlined, color: AppColors.primary),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.shield_outlined, color: AppColors.primary),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -185,7 +259,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     children: [
                       const Text(
                         'Tus documentos están protegidos',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -201,7 +275,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 100),
         ],
       ),
@@ -226,7 +300,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-            onPressed: () => context.pop(),
+            onPressed: () => context.go('/profile'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -234,7 +308,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('Guardar cambios'),
+            child: const Text('Volver al perfil'),
           ),
         ),
       ),
@@ -254,7 +328,7 @@ class _DocumentCard extends StatelessWidget {
   });
 
   Color _getStatusColor() {
-    if (document == null) return Colors.orange;
+    if (document == null) return const Color(0xFFFFA000);
     switch (document!.status) {
       case 'approved':
         return AppColors.success;
@@ -263,7 +337,7 @@ class _DocumentCard extends StatelessWidget {
       case 'uploaded':
         return AppColors.primary;
       default:
-        return Colors.orange;
+        return const Color(0xFFFFA000);
     }
   }
 
@@ -281,24 +355,34 @@ class _DocumentCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: hasDocument 
-                  ? AppColors.primary.withOpacity(0.1) 
-                  : AppColors.border.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              hasDocument ? Icons.description : Icons.add_photo_alternate,
-              color: hasDocument ? AppColors.primary : AppColors.textSecondary,
-              size: 28,
+          GestureDetector(
+            onTap: hasDocument ? () => _showPreview(document!.fileUrl!) : null,
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: hasDocument
+                    ? AppColors.primary.withOpacity(0.1)
+                    : AppColors.border.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                hasDocument ? Icons.description : Icons.add_photo_alternate,
+                color: hasDocument ? AppColors.primary : AppColors.textSecondary,
+                size: 28,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -313,22 +397,24 @@ class _DocumentCard extends StatelessWidget {
                         type.label,
                         style: const TextStyle(
                           fontSize: 15,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: _getStatusColor().withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
+                        color: _getStatusColor().withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: Text(
                         _getStatusLabel(),
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12.5,
                           color: _getStatusColor(),
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -343,14 +429,23 @@ class _DocumentCard extends StatelessWidget {
                     fontSize: 13,
                     color: AppColors.textSecondary,
                   ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          TextButton(
-            onPressed: onTap,
-            child: Text(hasDocument ? 'Reemplazar' : 'Subir'),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Icon(Icons.chevron_right, color: AppColors.textSecondary),
+              TextButton(
+                onPressed: onTap,
+                child: Text(hasDocument ? 'Reemplazar' : 'Subir'),
+              ),
+            ],
           ),
         ],
       ),
@@ -359,6 +454,19 @@ class _DocumentCard extends StatelessWidget {
 
   String _formatDate(DateTime? date) {
     if (date == null) return '';
-    return '${date.day}/${date.month}/${date.year}';
+    final localDate = date.toLocal();
+    return '${localDate.day}/${localDate.month}/${localDate.year}';
+  }
+
+  Future<void> _showPreview(String fileUrl) async {
+    try {
+      final uri = Uri.parse(fileUrl);
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        throw Exception('No se pudo abrir el documento');
+      }
+    } catch (e) {
+      throw Exception('Error al abrir documento: $e');
+    }
   }
 }

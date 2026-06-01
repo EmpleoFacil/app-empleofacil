@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../services/applications_service.dart';
+import '../services/documents_service.dart';
 import '../widgets/bottom_nav_bar.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -24,17 +26,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _selectedAvailability;
   String? _selectedJobType;
 
+  int _docsCount = 0;
+  int _docsTotal = 0;
+  int _appsActive = 0;
+
   @override
   void initState() {
     super.initState();
     _loadProfile();
   }
 
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _emailController.dispose();
+    _cityController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadProfile() async {
     try {
-      final api = ApiService();
+      final api = context.read<ApiService>();
       final response = await api.get('/candidates/me');
-      
+      final documentsService = DocumentsService(api);
+      final applicationsService = ApplicationsService(api);
+
+      final types = await documentsService.getDocumentTypes();
+      final docs = await documentsService.getMyDocuments();
+      final summary = await applicationsService.getSummary();
+
       if (mounted) {
         setState(() {
           _profile = response as Map<String, dynamic>;
@@ -43,6 +63,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _cityController.text = _profile?['city'] ?? '';
           _selectedAvailability = _profile?['availability'];
           _selectedJobType = _profile?['desiredJobType'];
+          _docsTotal = types.length;
+          _docsCount = docs.length;
+          _appsActive = summary.postulado + summary.enRevision + summary.entrevista;
           _isLoading = false;
         });
       }
@@ -60,7 +83,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final api = ApiService();
+      final api = context.read<ApiService>();
       await api.patch('/candidates/me', {
         'phone': _phoneController.text,
         'city': _cityController.text,
@@ -86,25 +109,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   int get _profileCompletion {
     int score = 0;
-    if (_profile?['fullName'] != null) score += 20;
-    if (_profile?['phone'] != null) score += 20;
-    if (_profile?['city'] != null) score += 20;
-    if (_profile?['desiredJobType'] != null) score += 20;
-    if (_profile?['availability'] != null) score += 20;
+    if (_profile?['fullName'] != null && (_profile!['fullName'] as String).isNotEmpty) score += 20;
+    if (_phoneController.text.isNotEmpty) score += 20;
+    if (_cityController.text.isNotEmpty) score += 20;
+    if (_selectedJobType != null && _selectedJobType!.isNotEmpty) score += 20;
+    if (_selectedAvailability != null && _selectedAvailability!.isNotEmpty) score += 20;
     return score;
+  }
+
+  String _getJobTypeLabel(String? type) {
+    if (type == null || type.isEmpty) return 'Sin especificar';
+    const labels = {
+      'security': 'Guardia de seguridad',
+      'cleaning': 'Auxiliar de limpieza',
+      'warehouse': 'Bodeguero',
+      'reception': 'Recepcionista',
+      'other': 'Otro',
+    };
+    return labels[type] ?? type;
+  }
+
+  String _getAvailabilityLabel(String? availability) {
+    if (availability == null || availability.isEmpty) return 'Inmediata';
+    const labels = {
+      'immediate': 'Inmediata',
+      '1_week': 'En 1 semana',
+      '2_weeks': 'En 2 semanas',
+      '1_month': 'En 1 mes',
+    };
+    return labels[availability] ?? availability;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        title: const Text('Empleo'),
-        centerTitle: true,
-        actions: [
+      body: SafeArea(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  _buildHeader(),
+                  Expanded(child: _buildContent()),
+                ],
+              ),
+      ),
+      bottomNavigationBar: const BottomNavBar(currentIndex: 3),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 12, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Empleo',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, size: 26),
+            color: AppColors.textPrimary,
             onPressed: () async {
               await context.read<AuthProvider>().logout();
               if (context.mounted) {
@@ -114,174 +184,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildContent(),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 4),
     );
   }
 
   Widget _buildContent() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Mi perfil',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
           Text(
-            'Edita tus datos en la misma vista\ny revisa tu progreso.',
-            style: TextStyle(color: AppColors.textSecondary),
+            'Mi perfil',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontSize: 26,
+                  color: AppColors.textPrimary,
+                ),
           ),
-          
-          const SizedBox(height: 24),
-          
-          // Profile header
-          Center(
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
-                  child: Icon(Icons.person, size: 50, color: AppColors.primary),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _profile?['fullName'] ?? 'Usuario',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  '${_profile?['city'] ?? 'Nicaragua'}',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-                Text(
-                  _profile?['phone'] ?? '',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-              ],
+          const SizedBox(height: 6),
+          Text(
+            'Edita tus datos en la misma vista y revisa tu progreso.',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              height: 1.4,
             ),
           ),
-          
-          const SizedBox(height: 24),
-          
-          // Profile completion
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Progreso de perfil',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      '$_profileCompletion%',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                LinearProgressIndicator(
-                  value: _profileCompletion / 100,
-                  backgroundColor: AppColors.border,
-                  valueColor: AlwaysStoppedAnimation(AppColors.primary),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _profileCompletion < 100
-                      ? '¡Vas muy bien! Completa tu perfil al 100%.'
-                      : '¡Perfil completo!',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Editable fields
-          _buildEditableField(
-            'Trabajo que buscas',
-            _selectedJobType ?? 'Sin especificar',
-            Icons.work_outline,
-            onEdit: _showJobTypeSelector,
-          ),
-          _buildEditableField(
-            'Disponibilidad',
-            _selectedAvailability ?? 'Inmediata',
-            Icons.schedule,
-            onEdit: _showAvailabilitySelector,
-          ),
-          _buildEditableField(
-            'Teléfono',
-            _phoneController.text.isEmpty ? 'Sin especificar' : _phoneController.text,
-            Icons.phone_outlined,
-            onEdit: () => _showEditDialog('Teléfono', _phoneController),
-          ),
-          _buildEditableField(
-            'Correo electrónico',
-            _emailController.text,
-            Icons.email_outlined,
-            onEdit: null, // Email is read-only
-          ),
-          _buildEditableField(
-            'Ciudad',
-            _cityController.text.isEmpty ? 'Sin especificar' : _cityController.text,
-            Icons.location_city,
-            onEdit: () => _showEditDialog('Ciudad', _cityController),
-          ),
-          
+          const SizedBox(height: 20),
+          _buildProfileCard(),
           const SizedBox(height: 16),
-          
-          // Navigation links
-          _buildNavigationItem(
-            'Mis documentos',
-            '${_profile?['documentsCount'] ?? 0} de 5 completos',
-            Icons.description_outlined,
-            () => context.go('/documents'),
-          ),
-          _buildNavigationItem(
-            'Mis postulaciones',
-            '${_profile?['applicationsCount'] ?? 0} activas',
-            Icons.assignment_outlined,
-            () => context.go('/applications'),
-          ),
-          
+          _buildProgressCard(),
+          const SizedBox(height: 16),
+          _buildEditableFieldsCard(),
+          const SizedBox(height: 16),
+          _buildNavigationCard(),
           const SizedBox(height: 24),
-          
-          // Save button
           SizedBox(
             width: double.infinity,
-            height: 52,
             child: ElevatedButton(
               onPressed: _isSaving ? null : _saveChanges,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
               child: _isSaving
                   ? const SizedBox(
                       width: 20,
@@ -291,101 +231,305 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   : const Text('Guardar cambios'),
             ),
           ),
-          
           const SizedBox(height: 100),
         ],
       ),
     );
   }
 
-  Widget _buildEditableField(
-    String label,
-    String value,
-    IconData icon, {
-    VoidCallback? onEdit,
-  }) {
+  Widget _buildProfileCard() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.textSecondary),
-          const SizedBox(width: 12),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              CircleAvatar(
+                radius: 38,
+                backgroundColor: AppColors.primarySoft,
+                child: Icon(Icons.person, size: 42, color: AppColors.primary),
+              ),
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
+                  _profile?['fullName'] ?? 'Usuario',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        _cityController.text.isEmpty ? 'Nicaragua' : _cityController.text,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.phone_outlined, size: 14, color: AppColors.textSecondary),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        _phoneController.text.isEmpty ? 'Sin teléfono' : _phoneController.text,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          if (onEdit != null)
-            IconButton(
-              icon: Icon(Icons.edit_outlined, color: AppColors.primary),
-              onPressed: onEdit,
-            ),
         ],
       ),
     );
   }
 
-  Widget _buildNavigationItem(
+  Widget _buildProgressCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Progreso de perfil',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Text(
+                '$_profileCompletion%',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: _profileCompletion / 100,
+              minHeight: 8,
+              backgroundColor: AppColors.borderSoft,
+              valueColor: const AlwaysStoppedAnimation(AppColors.success),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _profileCompletion < 100
+                ? '¡Vas muy bien! Completa tu perfil al 100%.'
+                : '¡Perfil completo!',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditableFieldsCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          _buildEditableRow(
+            'Trabajo que buscas',
+            _getJobTypeLabel(_selectedJobType),
+            onEdit: _showJobTypeSelector,
+          ),
+          _divider(),
+          _buildEditableRow(
+            'Disponibilidad',
+            _getAvailabilityLabel(_selectedAvailability),
+            onEdit: _showAvailabilitySelector,
+          ),
+          _divider(),
+          _buildEditableRow(
+            'Teléfono',
+            _phoneController.text.isEmpty ? 'Sin especificar' : _phoneController.text,
+            onEdit: () => _showEditDialog('Teléfono', _phoneController),
+          ),
+          _divider(),
+          _buildEditableRow(
+            'Correo electrónico',
+            _emailController.text.isEmpty ? 'Sin especificar' : _emailController.text,
+            onEdit: () => _showEditDialog('Correo electrónico', _emailController),
+          ),
+          _divider(),
+          _buildEditableRow(
+            'Ciudad',
+            _cityController.text.isEmpty ? 'Sin especificar' : _cityController.text,
+            onEdit: () => _showEditDialog('Ciudad', _cityController),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavigationCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          _buildNavigationRow(
+            icon: Icons.description_outlined,
+            label: 'Mis documentos',
+            subtitle: '$_docsCount de $_docsTotal completos',
+            onTap: () => context.go('/documents'),
+          ),
+          _divider(),
+          _buildNavigationRow(
+            icon: Icons.assignment_outlined,
+            label: 'Mis postulaciones',
+            subtitle: '$_appsActive activas',
+            onTap: () => context.go('/applications'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _divider() {
+    return Divider(height: 1, thickness: 1, color: AppColors.borderSoft);
+  }
+
+  Widget _buildEditableRow(
     String label,
-    String subtitle,
-    IconData icon,
-    VoidCallback onTap,
-  ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
+    String value, {
+    required VoidCallback onEdit,
+  }) {
+    return InkWell(
+      onTap: onEdit,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, color: AppColors.primary),
-            const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+              flex: 2,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
-            Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            Expanded(
+              flex: 2,
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavigationRow({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: AppColors.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
           ],
         ),
       ),
@@ -410,7 +554,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 16),
             ...['security', 'cleaning', 'warehouse', 'reception', 'other'].map((type) {
-              final labels = {
+              const labels = {
                 'security': 'Guardia de seguridad',
                 'cleaning': 'Auxiliar de limpieza',
                 'warehouse': 'Bodeguero',
@@ -452,7 +596,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 16),
             ...['immediate', '1_week', '2_weeks', '1_month'].map((avail) {
-              final labels = {
+              const labels = {
                 'immediate': 'Inmediata',
                 '1_week': 'En 1 semana',
                 '2_weeks': 'En 2 semanas',
@@ -477,7 +621,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _showEditDialog(String field, TextEditingController controller) {
     final editController = TextEditingController(text: controller.text);
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

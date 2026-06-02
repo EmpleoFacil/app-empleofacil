@@ -46,14 +46,11 @@ class _HomeScreenState extends State<HomeScreen> {
     _messageCreatedSub?.cancel();
     _messageUpdatedSub?.cancel();
     _messageRespondedSub?.cancel();
-    _realtimeService?.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _loadData() async {
-    final authProvider = context.read<AuthProvider>();
-    await authProvider.init();
     final jobsProvider = context.read<JobsProvider>();
     await jobsProvider.loadCategories();
     await jobsProvider.loadRecommendedJobs();
@@ -66,8 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _connectRealtime() {
     if (_realtimeService != null) return;
 
-    final api = context.read<ApiService>();
-    final realtimeService = MessageRealtimeService(api);
+    final realtimeService = context.read<MessageRealtimeService>();
     _realtimeService = realtimeService;
     _messageCreatedSub = realtimeService.messageCreated.listen((_) {
       _loadUnreadCount();

@@ -8,6 +8,7 @@ import 'api_service.dart';
 class MessageRealtimeService {
   final ApiService _api;
   io.Socket? _socket;
+  String? _lastToken;
 
   final _messageCreatedController =
       StreamController<Map<String, dynamic>>.broadcast();
@@ -30,7 +31,15 @@ class MessageRealtimeService {
     if (token == null || token.isEmpty) return;
 
     final currentSocket = _socket;
-    if (currentSocket != null && currentSocket.connected) return;
+    if (currentSocket != null &&
+        currentSocket.connected &&
+        _lastToken == token) {
+      return;
+    }
+
+    if (currentSocket != null) {
+      disconnect();
+    }
 
     final socket = io.io(
       '${ApiConfig.socketUrl}/messages',
@@ -47,6 +56,7 @@ class MessageRealtimeService {
     socket.on('messages:responded', _emitResponded);
     socket.connect();
     _socket = socket;
+    _lastToken = token;
   }
 
   void subscribeToMessage(String messageId) {
@@ -58,7 +68,7 @@ class MessageRealtimeService {
     _socket?.emit('messages:unsubscribe', {'messageId': messageId});
   }
 
-  void dispose() {
+  void disconnect() {
     final socket = _socket;
     if (socket != null) {
       socket.off('messages:created', _emitCreated);
@@ -67,6 +77,12 @@ class MessageRealtimeService {
       socket.disconnect();
       socket.dispose();
     }
+    _socket = null;
+    _lastToken = null;
+  }
+
+  void dispose() {
+    disconnect();
     _messageCreatedController.close();
     _messageUpdatedController.close();
     _messageRespondedController.close();

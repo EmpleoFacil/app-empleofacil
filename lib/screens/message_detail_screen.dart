@@ -50,14 +50,12 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
     _messageUpdatedSub?.cancel();
     _messageRespondedSub?.cancel();
     _realtimeService?.unsubscribeFromMessage(widget.messageId);
-    _realtimeService?.dispose();
     _responseController.dispose();
     super.dispose();
   }
 
   void _connectRealtime() {
-    final api = context.read<ApiService>();
-    final realtimeService = MessageRealtimeService(api);
+    final realtimeService = context.read<MessageRealtimeService>();
     _realtimeService = realtimeService;
     _messageUpdatedSub = realtimeService.messageUpdated.listen((event) {
       if (event['id'] == widget.messageId) {

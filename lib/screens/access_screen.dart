@@ -106,7 +106,12 @@ class _AccessScreenState extends State<AccessScreen> {
         _resendCountdown = 45;
       });
       _startResendCountdown();
-      _showSuccess('Código enviado');
+      final debugCode = response['debugCode'] as String?;
+      if (debugCode != null && debugCode.isNotEmpty) {
+        _showSuccess('Código de prueba: $debugCode');
+      } else {
+        _showSuccess('Código enviado');
+      }
     } else if (authProvider.error != null && mounted) {
       _showError(authProvider.error!);
     }

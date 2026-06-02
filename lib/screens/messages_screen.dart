@@ -20,7 +20,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
   List<dynamic> _messages = [];
   bool _isLoading = true;
   String _filter = 'all';
-  MessageRealtimeService? _realtimeService;
   StreamSubscription<Map<String, dynamic>>? _messageCreatedSub;
   StreamSubscription<Map<String, dynamic>>? _messageUpdatedSub;
   StreamSubscription<Map<String, dynamic>>? _messageRespondedSub;
@@ -37,14 +36,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
     _messageCreatedSub?.cancel();
     _messageUpdatedSub?.cancel();
     _messageRespondedSub?.cancel();
-    _realtimeService?.dispose();
     super.dispose();
   }
 
   void _connectRealtime() {
-    final api = context.read<ApiService>();
-    final realtimeService = MessageRealtimeService(api);
-    _realtimeService = realtimeService;
+    final realtimeService = context.read<MessageRealtimeService>();
     _messageCreatedSub = realtimeService.messageCreated.listen((_) {
       _loadMessages(showLoading: false, showErrors: false);
     });

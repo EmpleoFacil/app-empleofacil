@@ -2,16 +2,18 @@ import 'package:flutter/foundation.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../services/message_realtime_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService;
-  
+
   User? _user;
   bool _isLoading = false;
   String? _error;
   String? _selectedJobCategory;
 
-  AuthProvider(ApiService apiService) : _authService = AuthService(apiService);
+  AuthProvider(ApiService apiService, MessageRealtimeService realtimeService)
+    : _authService = AuthService(apiService, realtimeService);
 
   User? get user => _user;
   bool get isLoading => _isLoading;
@@ -29,7 +31,10 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<bool> checkSession() async {
-    return await _authService.hasValidSession();
+    final user = await _authService.restoreSession();
+    _user = user;
+    notifyListeners();
+    return user != null;
   }
 
   Future<bool> register({

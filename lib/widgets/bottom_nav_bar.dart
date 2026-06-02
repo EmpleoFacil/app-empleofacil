@@ -20,7 +20,6 @@ class BottomNavBar extends StatefulWidget {
 
 class _BottomNavBarState extends State<BottomNavBar> {
   int _unreadCount = 0;
-  MessageRealtimeService? _realtimeService;
   StreamSubscription<Map<String, dynamic>>? _messageCreatedSub;
   StreamSubscription<Map<String, dynamic>>? _messageUpdatedSub;
   StreamSubscription<Map<String, dynamic>>? _messageRespondedSub;
@@ -39,7 +38,6 @@ class _BottomNavBarState extends State<BottomNavBar> {
     _messageCreatedSub?.cancel();
     _messageUpdatedSub?.cancel();
     _messageRespondedSub?.cancel();
-    _realtimeService?.dispose();
     super.dispose();
   }
 
@@ -53,9 +51,7 @@ class _BottomNavBarState extends State<BottomNavBar> {
   }
 
   void _connectRealtime() {
-    final api = context.read<ApiService>();
-    final realtimeService = MessageRealtimeService(api);
-    _realtimeService = realtimeService;
+    final realtimeService = context.read<MessageRealtimeService>();
     _messageCreatedSub = realtimeService.messageCreated.listen((_) {
       _loadUnreadCount();
     });

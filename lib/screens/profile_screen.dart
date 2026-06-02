@@ -65,16 +65,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _selectedJobType = _profile?['desiredJobType'];
           _docsTotal = types.length;
           _docsCount = docs.length;
-          _appsActive = summary.postulado + summary.enRevision + summary.entrevista;
+          _appsActive =
+              summary.postulado + summary.enRevision + summary.entrevista;
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar perfil: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al cargar perfil: $e')));
       }
     }
   }
@@ -86,21 +87,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final api = context.read<ApiService>();
       await api.patch('/candidates/me', {
         'phone': _phoneController.text,
+        'email': _emailController.text,
         'city': _cityController.text,
         'availability': _selectedAvailability,
         'desiredJobType': _selectedJobType,
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cambios guardados')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Cambios guardados')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al guardar: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al guardar: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -109,11 +111,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   int get _profileCompletion {
     int score = 0;
-    if (_profile?['fullName'] != null && (_profile!['fullName'] as String).isNotEmpty) score += 20;
+    if (_profile?['fullName'] != null &&
+        (_profile!['fullName'] as String).isNotEmpty)
+      score += 20;
     if (_phoneController.text.isNotEmpty) score += 20;
     if (_cityController.text.isNotEmpty) score += 20;
     if (_selectedJobType != null && _selectedJobType!.isNotEmpty) score += 20;
-    if (_selectedAvailability != null && _selectedAvailability!.isNotEmpty) score += 20;
+    if (_selectedAvailability != null && _selectedAvailability!.isNotEmpty)
+      score += 20;
     return score;
   }
 
@@ -196,9 +201,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Text(
             'Mi perfil',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontSize: 26,
-                  color: AppColors.textPrimary,
-                ),
+              fontSize: 26,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
@@ -226,7 +231,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Text('Guardar cambios'),
             ),
@@ -266,7 +274,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: AppColors.primary,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
+                  child: const Icon(
+                    Icons.camera_alt,
+                    color: Colors.white,
+                    size: 14,
+                  ),
                 ),
               ),
             ],
@@ -287,11 +299,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: 14,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        _cityController.text.isEmpty ? 'Nicaragua' : _cityController.text,
+                        _cityController.text.isEmpty
+                            ? 'Nicaragua'
+                            : _cityController.text,
                         style: const TextStyle(
                           fontSize: 13,
                           color: AppColors.textSecondary,
@@ -303,11 +321,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.phone_outlined, size: 14, color: AppColors.textSecondary),
+                    Icon(
+                      Icons.phone_outlined,
+                      size: 14,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        _phoneController.text.isEmpty ? 'Sin teléfono' : _phoneController.text,
+                        _phoneController.text.isEmpty
+                            ? 'Sin teléfono'
+                            : _phoneController.text,
                         style: const TextStyle(
                           fontSize: 13,
                           color: AppColors.textSecondary,
@@ -405,19 +429,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _divider(),
           _buildEditableRow(
             'Teléfono',
-            _phoneController.text.isEmpty ? 'Sin especificar' : _phoneController.text,
+            _phoneController.text.isEmpty
+                ? 'Sin especificar'
+                : _phoneController.text,
             onEdit: () => _showEditDialog('Teléfono', _phoneController),
           ),
           _divider(),
           _buildEditableRow(
             'Correo electrónico',
-            _emailController.text.isEmpty ? 'Sin especificar' : _emailController.text,
-            onEdit: () => _showEditDialog('Correo electrónico', _emailController),
+            _emailController.text.isEmpty
+                ? 'Sin especificar'
+                : _emailController.text,
+            onEdit: () =>
+                _showEditDialog('Correo electrónico', _emailController),
           ),
           _divider(),
           _buildEditableRow(
             'Ciudad',
-            _cityController.text.isEmpty ? 'Sin especificar' : _cityController.text,
+            _cityController.text.isEmpty
+                ? 'Sin especificar'
+                : _cityController.text,
             onEdit: () => _showEditDialog('Ciudad', _cityController),
           ),
         ],
@@ -553,7 +584,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            ...['security', 'cleaning', 'warehouse', 'reception', 'other'].map((type) {
+            ...['security', 'cleaning', 'warehouse', 'reception', 'other'].map((
+              type,
+            ) {
               const labels = {
                 'security': 'Guardia de seguridad',
                 'cleaning': 'Auxiliar de limpieza',
@@ -630,9 +663,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           controller: editController,
           decoration: InputDecoration(
             labelText: field,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
         actions: [

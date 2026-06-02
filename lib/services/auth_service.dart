@@ -1,15 +1,17 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user.dart';
 import 'api_service.dart';
+import 'message_realtime_service.dart';
 
 class AuthService {
   final ApiService _api;
+  final MessageRealtimeService _realtime;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   static const _tokenKey = 'access_token';
   static const _rememberKey = 'remember_session';
 
-  AuthService(this._api);
+  AuthService(this._api, this._realtime);
 
   Future<void> init() async {
     final token = await _storage.read(key: _tokenKey);
@@ -18,17 +20,22 @@ class AuthService {
     }
   }
 
-  Future<bool> hasValidSession() async {
+  Future<User?> restoreSession() async {
     final token = await _storage.read(key: _tokenKey);
-    if (token == null) return false;
+    if (token == null) {
+      _api.setToken(null);
+      _realtime.disconnect();
+      return null;
+    }
 
     try {
       _api.setToken(token);
-      await _api.get('/auth/me');
-      return true;
+      final user = await getCurrentUser();
+      _realtime.connect();
+      return user;
     } catch (_) {
       await logout();
-      return false;
+      return null;
     }
   }
 
@@ -42,13 +49,14 @@ class AuthService {
     final response = await _api.post('/auth/register-candidate', {
       'fullName': fullName,
       'phone': phone,
-      if (email != null && email.isNotEmpty) 'email': email,
+      if (email?.isNotEmpty ?? false) 'email': email,
       'password': password,
-      if (desiredJobType != null) 'desiredJobType': desiredJobType,
+      if (desiredJobType?.isNotEmpty ?? false) 'desiredJobType': desiredJobType,
     });
 
     final authResponse = AuthResponse.fromJson(response);
     await _saveToken(authResponse.accessToken, true);
+    _realtime.connect();
     return authResponse;
   }
 
@@ -64,7 +72,13 @@ class AuthService {
 
     final authResponse = AuthResponse.fromJson(response);
     await _saveToken(authResponse.accessToken, rememberSession);
+    _realtime.connect();
     return authResponse;
+  }
+
+  Future<User> getCurrentUser() async {
+    final response = await _api.get('/auth/me') as Map<String, dynamic>;
+    return _mapCurrentUser(response);
   }
 
   Future<Map<String, dynamic>> recoverAccess(String identifier) async {
@@ -99,6 +113,7 @@ class AuthService {
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _rememberKey);
     _api.setToken(null);
+    _realtime.disconnect();
   }
 
   Future<void> _saveToken(String token, bool remember) async {
@@ -110,5 +125,22 @@ class AuthService {
       await _storage.delete(key: _tokenKey);
       await _storage.delete(key: _rememberKey);
     }
+  }
+
+  User _mapCurrentUser(Map<String, dynamic> json) {
+    final candidate = json['candidateProfile'] as Map<String, dynamic>?;
+    final companyUsers = json['companyUsers'] as List?;
+    final companyUser = companyUsers != null && companyUsers.isNotEmpty
+        ? companyUsers.first as Map<String, dynamic>
+        : null;
+
+    return User(
+      id: json['id'] as String,
+      email: json['email'] as String?,
+      phone: json['phone'] as String?,
+      role: json['role'] as String,
+      candidateId: candidate?['id'] as String?,
+      companyId: companyUser?['companyId'] as String?,
+    );
   }
 }

@@ -13,10 +13,15 @@ import 'screens/messages_screen.dart';
 import 'screens/message_detail_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/search_results_screen.dart';
+import 'screens/session_bootstrap_screen.dart';
 
 final router = GoRouter(
-  initialLocation: '/welcome',
+  initialLocation: '/bootstrap',
   routes: [
+    GoRoute(
+      path: '/bootstrap',
+      builder: (context, state) => const SessionBootstrapScreen(),
+    ),
     GoRoute(
       path: '/welcome',
       builder: (context, state) => const WelcomeScreen(),
@@ -33,15 +38,11 @@ final router = GoRouter(
       path: '/auth/access',
       builder: (context, state) => const AccessScreen(),
     ),
-    GoRoute(
-      path: '/home',
-      builder: (context, state) => const HomeScreen(),
-    ),
+    GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
     GoRoute(
       path: '/jobs/:id',
-      builder: (context, state) => JobDetailScreen(
-        jobId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          JobDetailScreen(jobId: state.pathParameters['id']!),
     ),
     GoRoute(
       path: '/jobs/search',
@@ -60,9 +61,8 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/applications/:id',
-      builder: (context, state) => ApplicationDetailScreen(
-        applicationId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          ApplicationDetailScreen(applicationId: state.pathParameters['id']!),
     ),
     GoRoute(
       path: '/messages',
@@ -70,18 +70,14 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/messages/:id',
-      builder: (context, state) => MessageDetailScreen(
-        messageId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          MessageDetailScreen(messageId: state.pathParameters['id']!),
     ),
     GoRoute(
       path: '/profile',
       builder: (context, state) => const ProfileScreen(),
     ),
   ],
-  errorBuilder: (context, state) => Scaffold(
-    body: Center(
-      child: Text('Página no encontrada: ${state.uri}'),
-    ),
-  ),
+  errorBuilder: (context, state) =>
+      Scaffold(body: Center(child: Text('Página no encontrada: ${state.uri}'))),
 );

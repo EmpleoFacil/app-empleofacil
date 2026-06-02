@@ -32,10 +32,10 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       final api = context.read<ApiService>();
       final jobsService = JobsService(api);
       final response = await jobsService.search(query: widget.query);
-      
+
       if (mounted) {
         setState(() {
-          final list = response['jobs'] as List?;
+          final list = response['items'] as List?;
           _results = list?.map((json) => Job.fromJson(json)).toList() ?? [];
           _isLoading = false;
         });
@@ -66,16 +66,16 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text('Error: $_error'))
-              : _results.isEmpty
-                  ? const Center(child: Text('No se encontraron resultados'))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _results.length,
-                      itemBuilder: (context, index) {
-                        return _JobCard(job: _results[index]);
-                      },
-                    ),
+          ? Center(child: Text('Error: $_error'))
+          : _results.isEmpty
+          ? const Center(child: Text('No se encontraron resultados'))
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _results.length,
+              itemBuilder: (context, index) {
+                return _JobCard(job: _results[index]);
+              },
+            ),
       bottomNavigationBar: const BottomNavBar(currentIndex: 0),
     );
   }
@@ -103,27 +103,28 @@ class _JobCard extends StatelessWidget {
           children: [
             Text(
               job.title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Text(
               job.company?.name ?? '',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   job.city ?? 'Nicaragua',
-                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Text(

@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../services/applications_service.dart';
 import '../services/saved_jobs_service.dart';
 import '../services/documents_service.dart';
+import '../models/document.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final String jobId;
@@ -111,7 +112,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       }
       
       final applicationsService = ApplicationsService(api);
-      final application = await applicationsService.apply(widget.jobId);
+      await applicationsService.apply(widget.jobId);
       
       if (mounted) {
         setState(() {
@@ -176,7 +177,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     );
   }
 
-  void _showMissingDocumentsDialog(List<dynamic> missingDocuments) {
+  void _showMissingDocumentsDialog(List<DocumentType> missingDocuments) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -212,7 +213,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      doc['label'] ?? 'Documento',
+                      doc.label,
                       style: const TextStyle(fontSize: 14),
                     ),
                   ),

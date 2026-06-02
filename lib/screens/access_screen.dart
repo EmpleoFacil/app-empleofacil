@@ -16,18 +16,18 @@ class AccessScreen extends StatefulWidget {
 
 class _AccessScreenState extends State<AccessScreen> {
   AccessMode _mode = AccessMode.login;
-  
+
   final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmNewPasswordController = TextEditingController();
   final _codeControllers = List.generate(6, (_) => TextEditingController());
   final _codeFocusNodes = List.generate(6, (_) => FocusNode());
-  
+
   bool _obscurePassword = true;
   bool _obscureNewPassword = true;
   bool _rememberSession = false;
-  
+
   String? _recoveryId;
   String? _resetToken;
   int _resendCountdown = 0;
@@ -69,7 +69,8 @@ class _AccessScreenState extends State<AccessScreen> {
   }
 
   Future<void> _login() async {
-    if (_identifierController.text.trim().isEmpty || _passwordController.text.isEmpty) {
+    if (_identifierController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty) {
       _showError('Ingresa tu teléfono o correo y contraseña');
       return;
     }
@@ -210,7 +211,7 @@ class _AccessScreenState extends State<AccessScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              
+
               const Text(
                 'Accede a tu cuenta',
                 style: TextStyle(
@@ -219,19 +220,19 @@ class _AccessScreenState extends State<AccessScreen> {
                   color: AppColors.textPrimary,
                 ),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // Tabs
               _buildTabs(),
-              
+
               const SizedBox(height: 32),
-              
+
               // Contenido según modo
               if (_mode == AccessMode.login) _buildLoginForm(),
               if (_mode == AccessMode.recovery) _buildRecoveryForm(),
               if (_mode == AccessMode.resetPassword) _buildResetPasswordForm(),
-              
+
               const SizedBox(height: 32),
             ],
           ),
@@ -255,7 +256,9 @@ class _AccessScreenState extends State<AccessScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: _mode == AccessMode.login ? AppColors.primary : Colors.transparent,
+                  color: _mode == AccessMode.login
+                      ? AppColors.primary
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -263,7 +266,9 @@ class _AccessScreenState extends State<AccessScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: _mode == AccessMode.login ? Colors.white : AppColors.textSecondary,
+                    color: _mode == AccessMode.login
+                        ? Colors.white
+                        : AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -275,7 +280,9 @@ class _AccessScreenState extends State<AccessScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: _mode != AccessMode.login ? AppColors.primary : Colors.transparent,
+                  color: _mode != AccessMode.login
+                      ? AppColors.primary
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -283,7 +290,9 @@ class _AccessScreenState extends State<AccessScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: _mode != AccessMode.login ? Colors.white : AppColors.textSecondary,
+                    color: _mode != AccessMode.login
+                        ? Colors.white
+                        : AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -300,14 +309,11 @@ class _AccessScreenState extends State<AccessScreen> {
       children: [
         Text(
           'Inicia sesión en tu cuenta',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
+          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
-        
+
         const SizedBox(height: 24),
-        
+
         _buildLabel('Teléfono o correo'),
         const SizedBox(height: 8),
         TextFormField(
@@ -315,12 +321,11 @@ class _AccessScreenState extends State<AccessScreen> {
           keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(
             hintText: '+505 8888 8888 o ejemplo@correo.com',
-            suffixIcon: _buildGBadge(),
           ),
         ),
-        
+
         const SizedBox(height: 20),
-        
+
         _buildLabel('Contraseña'),
         const SizedBox(height: 8),
         TextFormField(
@@ -336,16 +341,16 @@ class _AccessScreenState extends State<AccessScreen> {
                     _obscurePassword ? Icons.visibility_off : Icons.visibility,
                     color: AppColors.textSecondary,
                   ),
-                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
                 ),
-                _buildGBadge(),
               ],
             ),
           ),
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         // Remember me y Olvidé contraseña
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -357,7 +362,8 @@ class _AccessScreenState extends State<AccessScreen> {
                   height: 24,
                   child: Checkbox(
                     value: _rememberSession,
-                    onChanged: (v) => setState(() => _rememberSession = v ?? false),
+                    onChanged: (v) =>
+                        setState(() => _rememberSession = v ?? false),
                     activeColor: AppColors.primary,
                   ),
                 ),
@@ -375,17 +381,14 @@ class _AccessScreenState extends State<AccessScreen> {
               onPressed: _switchToRecovery,
               child: Text(
                 'Olvidé mi contraseña',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.primary,
-                ),
+                style: TextStyle(fontSize: 14, color: AppColors.primary),
               ),
             ),
           ],
         ),
-        
+
         const SizedBox(height: 24),
-        
+
         // Botón Entrar
         Consumer<AuthProvider>(
           builder: (context, authProvider, child) {
@@ -405,9 +408,18 @@ class _AccessScreenState extends State<AccessScreen> {
                     ? const SizedBox(
                         width: 24,
                         height: 24,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
                       )
-                    : const Text('Entrar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    : const Text(
+                        'Entrar',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
             );
           },
@@ -441,26 +453,22 @@ class _AccessScreenState extends State<AccessScreen> {
               const SizedBox(height: 4),
               Text(
                 'Recupera tu acceso en minutos.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               _buildLabel('Teléfono o correo'),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _identifierController,
                 decoration: InputDecoration(
                   hintText: '+505 8888 8888 o ejemplo@correo.com',
-                  suffixIcon: _buildGBadge(),
                 ),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Botón Enviar código
               Consumer<AuthProvider>(
                 builder: (context, authProvider, child) {
@@ -468,7 +476,9 @@ class _AccessScreenState extends State<AccessScreen> {
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: authProvider.isLoading ? null : _sendRecoveryCode,
+                      onPressed: authProvider.isLoading
+                          ? null
+                          : _sendRecoveryCode,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -480,7 +490,10 @@ class _AccessScreenState extends State<AccessScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
                             )
                           : const Text('Enviar código'),
                     ),
@@ -490,10 +503,10 @@ class _AccessScreenState extends State<AccessScreen> {
             ],
           ),
         ),
-        
+
         if (_recoveryId != null) ...[
           const SizedBox(height: 24),
-          
+
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -512,9 +525,9 @@ class _AccessScreenState extends State<AccessScreen> {
                     color: AppColors.textPrimary,
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Inputs de código
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -528,7 +541,10 @@ class _AccessScreenState extends State<AccessScreen> {
                         textAlign: TextAlign.center,
                         keyboardType: TextInputType.number,
                         maxLength: 1,
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                         decoration: InputDecoration(
                           counterText: '',
                           contentPadding: EdgeInsets.zero,
@@ -536,12 +552,16 @@ class _AccessScreenState extends State<AccessScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
                         onChanged: (value) {
                           if (value.isNotEmpty && index < 5) {
                             _codeFocusNodes[index + 1].requestFocus();
                           }
-                          if (_codeControllers.every((c) => c.text.isNotEmpty)) {
+                          if (_codeControllers.every(
+                            (c) => c.text.isNotEmpty,
+                          )) {
                             _verifyCode();
                           }
                         },
@@ -549,25 +569,28 @@ class _AccessScreenState extends State<AccessScreen> {
                     );
                   }),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Reenviar código
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     TextButton(
-                      onPressed: _resendCountdown > 0 ? null : _sendRecoveryCode,
+                      onPressed: _resendCountdown > 0
+                          ? null
+                          : _sendRecoveryCode,
                       child: Text(
                         _resendCountdown > 0
                             ? 'Reenviar código en 00:${_resendCountdown.toString().padLeft(2, '0')}'
                             : 'Reenviar código',
                         style: TextStyle(
-                          color: _resendCountdown > 0 ? AppColors.textSecondary : AppColors.primary,
+                          color: _resendCountdown > 0
+                              ? AppColors.textSecondary
+                              : AppColors.primary,
                         ),
                       ),
                     ),
-                    _buildGBadgeSmall(),
                   ],
                 ),
               ],
@@ -597,9 +620,9 @@ class _AccessScreenState extends State<AccessScreen> {
               color: AppColors.textPrimary,
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           _buildLabel('Nueva contraseña'),
           const SizedBox(height: 8),
           TextFormField(
@@ -612,25 +635,24 @@ class _AccessScreenState extends State<AccessScreen> {
                   _obscureNewPassword ? Icons.visibility_off : Icons.visibility,
                   color: AppColors.textSecondary,
                 ),
-                onPressed: () => setState(() => _obscureNewPassword = !_obscureNewPassword),
+                onPressed: () =>
+                    setState(() => _obscureNewPassword = !_obscureNewPassword),
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           _buildLabel('Confirmar contraseña'),
           const SizedBox(height: 8),
           TextFormField(
             controller: _confirmNewPasswordController,
             obscureText: true,
-            decoration: const InputDecoration(
-              hintText: 'Repite tu contraseña',
-            ),
+            decoration: const InputDecoration(hintText: 'Repite tu contraseña'),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           Consumer<AuthProvider>(
             builder: (context, authProvider, child) {
               return SizedBox(
@@ -649,7 +671,10 @@ class _AccessScreenState extends State<AccessScreen> {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : const Text('Actualizar contraseña'),
                 ),
@@ -668,34 +693,6 @@ class _AccessScreenState extends State<AccessScreen> {
         fontSize: 14,
         fontWeight: FontWeight.w500,
         color: AppColors.textPrimary,
-      ),
-    );
-  }
-
-  Widget _buildGBadge() {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: Container(
-        width: 24,
-        height: 24,
-        decoration: const BoxDecoration(
-          color: Colors.orange,
-          shape: BoxShape.circle,
-        ),
-        child: const Center(
-          child: Text('G', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGBadgeSmall() {
-    return Container(
-      width: 20,
-      height: 20,
-      decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
-      child: const Center(
-        child: Text('G', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
       ),
     );
   }

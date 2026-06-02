@@ -5,7 +5,7 @@ import 'api_service.dart';
 class AuthService {
   final ApiService _api;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
-  
+
   static const _tokenKey = 'access_token';
   static const _rememberKey = 'remember_session';
 
@@ -21,7 +21,7 @@ class AuthService {
   Future<bool> hasValidSession() async {
     final token = await _storage.read(key: _tokenKey);
     if (token == null) return false;
-    
+
     try {
       _api.setToken(token);
       await _api.get('/auth/me');
@@ -106,6 +106,9 @@ class AuthService {
     if (remember) {
       await _storage.write(key: _tokenKey, value: token);
       await _storage.write(key: _rememberKey, value: 'true');
+    } else {
+      await _storage.delete(key: _tokenKey);
+      await _storage.delete(key: _rememberKey);
     }
   }
 }

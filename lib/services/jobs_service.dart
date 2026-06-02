@@ -13,9 +13,10 @@ class JobsService {
   }
 
   Future<List<Job>> getRecommended({String? categoryId}) async {
-    final endpoint = categoryId != null 
-        ? '/jobs/recommended?category=$categoryId' 
-        : '/jobs/recommended';
+    final endpoint = Uri(
+      path: '/jobs/recommended',
+      queryParameters: categoryId != null ? {'category': categoryId} : null,
+    ).toString();
     final response = await _api.get(endpoint);
     final list = response as List;
     return list.map((json) => Job.fromJson(json)).toList();
@@ -33,8 +34,11 @@ class JobsService {
     if (categoryId != null) params['category'] = categoryId;
     params['page'] = page.toString();
 
-    final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
-    final response = await _api.get('/jobs/search?$queryString');
+    final endpoint = Uri(
+      path: '/jobs/search',
+      queryParameters: params,
+    ).toString();
+    final response = await _api.get(endpoint);
     return response as Map<String, dynamic>;
   }
 

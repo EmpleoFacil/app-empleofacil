@@ -6,8 +6,11 @@ class MessagesService {
   MessagesService(this._api);
 
   Future<List<dynamic>> getMessages({String filter = 'all'}) async {
-    final query = filter == 'all' ? '' : '?filter=$filter';
-    final response = await _api.get('/messages/me$query');
+    final endpoint = Uri(
+      path: '/messages/me',
+      queryParameters: filter == 'all' ? null : {'filter': filter},
+    ).toString();
+    final response = await _api.get(endpoint);
     return response as List<dynamic>;
   }
 

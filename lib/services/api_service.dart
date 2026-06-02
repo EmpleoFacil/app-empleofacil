@@ -15,6 +15,8 @@ class ApiException implements Exception {
 class ApiService {
   String? _token;
 
+  String? get accessToken => _token;
+
   void setToken(String? token) {
     _token = token;
   }
@@ -29,16 +31,16 @@ class ApiService {
 
   Future<dynamic> get(String endpoint) async {
     final response = await http
-        .get(
-          Uri.parse('${ApiConfig.baseUrl}$endpoint'),
-          headers: _headers,
-        )
+        .get(Uri.parse('${ApiConfig.baseUrl}$endpoint'), headers: _headers)
         .timeout(ApiConfig.timeout);
 
     return _handleResponse(response);
   }
 
-  Future<dynamic> postForm(String endpoint, http.MultipartRequest request) async {
+  Future<dynamic> postForm(
+    String endpoint,
+    http.MultipartRequest request,
+  ) async {
     request.headers.addAll(_headers);
     request.headers.remove('Content-Type');
 
@@ -78,7 +80,9 @@ class ApiService {
       return body;
     }
 
-    final message = body is Map ? (body['message'] ?? 'Error desconocido') : 'Error desconocido';
+    final message = body is Map
+        ? (body['message'] ?? 'Error desconocido')
+        : 'Error desconocido';
     throw ApiException(
       message is List ? message.join(', ') : message.toString(),
       statusCode: response.statusCode,

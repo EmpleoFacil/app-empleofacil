@@ -76,27 +76,6 @@ class _JobTypeScreenState extends State<JobTypeScreen> {
         ),
         title: const Text('Empleo'),
         centerTitle: true,
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            width: 28,
-            height: 28,
-            decoration: const BoxDecoration(
-              color: Colors.orange,
-              shape: BoxShape.circle,
-            ),
-            child: const Center(
-              child: Text(
-                'G',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
       body: SafeArea(
         child: Padding(
@@ -108,14 +87,11 @@ class _JobTypeScreenState extends State<JobTypeScreen> {
               const SizedBox(height: 8),
               Text(
                 'Paso 1 de 2',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // Título
               const Text(
                 '¿Qué trabajo buscas?',
@@ -128,22 +104,17 @@ class _JobTypeScreenState extends State<JobTypeScreen> {
               const SizedBox(height: 8),
               Text(
                 'Elige una opción para empezar',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
               ),
-              
+
               const SizedBox(height: 32),
-              
+
               // Grid de categorías
               Expanded(
                 child: Consumer<JobsProvider>(
                   builder: (context, jobsProvider, child) {
                     if (jobsProvider.isLoading) {
-                      return const Center(
-                        child: CircularProgressIndicator(),
-                      );
+                      return const Center(child: CircularProgressIndicator());
                     }
 
                     if (jobsProvider.error != null) {
@@ -166,17 +137,18 @@ class _JobTypeScreenState extends State<JobTypeScreen> {
                     }
 
                     return GridView.builder(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        childAspectRatio: 1.1,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            childAspectRatio: 1.1,
+                          ),
                       itemCount: jobsProvider.categories.length,
                       itemBuilder: (context, index) {
                         final category = jobsProvider.categories[index];
                         final isSelected = _selectedCategory == category.id;
-                        
+
                         return _CategoryCard(
                           category: category,
                           icon: _getCategoryIcon(category.icon ?? 'work'),
@@ -188,7 +160,7 @@ class _JobTypeScreenState extends State<JobTypeScreen> {
                   },
                 ),
               ),
-              
+
               // Nota
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -210,7 +182,7 @@ class _JobTypeScreenState extends State<JobTypeScreen> {
                   ],
                 ),
               ),
-              
+
               // Botón Continuar
               SizedBox(
                 width: double.infinity,
@@ -226,14 +198,11 @@ class _JobTypeScreenState extends State<JobTypeScreen> {
                   ),
                   child: const Text(
                     'Continuar',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 32),
             ],
           ),
@@ -296,7 +265,9 @@ class _CategoryCard extends StatelessWidget {
                     child: Icon(
                       icon,
                       size: 32,
-                      color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -305,7 +276,9 @@ class _CategoryCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textPrimary,
                     ),
                   ),
                 ],
@@ -322,35 +295,9 @@ class _CategoryCard extends StatelessWidget {
                     color: AppColors.primary,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.check,
-                    size: 16,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.check, size: 16, color: Colors.white),
                 ),
               ),
-            Positioned(
-              bottom: 8,
-              right: 8,
-              child: Container(
-                width: 20,
-                height: 20,
-                decoration: const BoxDecoration(
-                  color: Colors.orange,
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Text(
-                    'G',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ),

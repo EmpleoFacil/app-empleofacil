@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../services/api_service.dart';
+import '../services/message_realtime_service.dart';
 import '../services/messages_service.dart';
 import '../widgets/bottom_nav_bar.dart';
 
@@ -22,6 +25,9 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
   final _responseController = TextEditingController();
   bool _isSending = false;
   List<Map<String, dynamic>> _responses = [];
+  MessageRealtimeService? _realtimeService;
+  StreamSubscription<Map<String, dynamic>>? _messageUpdatedSub;
+  StreamSubscription<Map<String, dynamic>>? _messageRespondedSub;
 
   bool _handleBack() {
     if (Navigator.of(context).canPop()) {
@@ -36,19 +42,50 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
   void initState() {
     super.initState();
     _loadMessage();
+    _connectRealtime();
   }
 
-  Future<void> _loadMessage() async {
+  @override
+  void dispose() {
+    _messageUpdatedSub?.cancel();
+    _messageRespondedSub?.cancel();
+    _realtimeService?.unsubscribeFromMessage(widget.messageId);
+    _realtimeService?.dispose();
+    _responseController.dispose();
+    super.dispose();
+  }
+
+  void _connectRealtime() {
+    final api = context.read<ApiService>();
+    final realtimeService = MessageRealtimeService(api);
+    _realtimeService = realtimeService;
+    _messageUpdatedSub = realtimeService.messageUpdated.listen((event) {
+      if (event['id'] == widget.messageId) {
+        _loadMessage(showLoading: false, showErrors: false);
+      }
+    });
+    _messageRespondedSub = realtimeService.messageResponded.listen((event) {
+      if (event['id'] == widget.messageId) {
+        _loadMessage(showLoading: false, showErrors: false);
+      }
+    });
+    realtimeService.subscribeToMessage(widget.messageId);
+  }
+
+  Future<void> _loadMessage({
+    bool showLoading = true,
+    bool showErrors = true,
+  }) async {
     try {
       final api = context.read<ApiService>();
       final messagesService = MessagesService(api);
       final response = await api.get('/messages/${widget.messageId}');
-      
+
       // Mark as read
       if (response['status'] == 'sent' || response['status'] == 'unread') {
         await messagesService.markRead(widget.messageId);
       }
-      
+
       if (mounted) {
         setState(() {
           _message = response as Map<String, dynamic>;
@@ -59,10 +96,12 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar mensaje: $e')),
-        );
+        if (showLoading) setState(() => _isLoading = false);
+        if (showErrors) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al cargar mensaje: $e')),
+          );
+        }
       }
     }
   }
@@ -95,9 +134,10 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
           _selectedResponse = null;
           _responseController.clear();
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Respuesta enviada')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Respuesta enviada')));
+        await _loadMessage(showLoading: false, showErrors: false);
       }
     } catch (e) {
       if (mounted) {
@@ -136,7 +176,9 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: fromMe ? AppColors.primary.withOpacity(0.06) : AppColors.background,
+                color: fromMe
+                    ? AppColors.primary.withOpacity(0.06)
+                    : AppColors.background,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: AppColors.border),
               ),
@@ -147,13 +189,13 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
                     r['responseType'] == 'confirm'
                         ? Icons.check_circle
                         : r['responseType'] == 'decline'
-                            ? Icons.cancel
-                            : Icons.help_outline,
+                        ? Icons.cancel
+                        : Icons.help_outline,
                     color: r['responseType'] == 'confirm'
                         ? AppColors.success
                         : r['responseType'] == 'decline'
-                            ? AppColors.error
-                            : Colors.orange,
+                        ? AppColors.error
+                        : Colors.orange,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -173,8 +215,8 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
                               r['responseType'] == 'confirm'
                                   ? 'Confirmado'
                                   : r['responseType'] == 'decline'
-                                      ? 'No asistiré'
-                                      : 'Necesita ayuda',
+                                  ? 'No asistiré'
+                                  : 'Necesita ayuda',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: AppColors.textSecondary,
@@ -182,17 +224,20 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
                             ),
                             Text(
                               time,
-                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ],
                         ),
                       ],
                     ),
-                  )
+                  ),
                 ],
               ),
             );
-          })
+          }),
         ],
       ),
     );
@@ -216,8 +261,8 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _message == null
-                ? const Center(child: Text('Mensaje no encontrado'))
-                : _buildContent(),
+            ? const Center(child: Text('Mensaje no encontrado'))
+            : _buildContent(),
         bottomNavigationBar: const BottomNavBar(currentIndex: 2),
       ),
     );
@@ -237,13 +282,21 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
             children: [
               Expanded(
                 child: Text(
-                  isInterview ? 'Invitación a entrevista' : msg['title'] ?? 'Mensaje',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  isInterview
+                      ? 'Invitación a entrevista'
+                      : msg['title'] ?? 'Mensaje',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               if (msg['status'] == 'sent' || msg['status'] == 'unread')
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(4),
@@ -260,7 +313,7 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          
+
           // Company info
           Container(
             padding: const EdgeInsets.all(12),
@@ -278,7 +331,11 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
                     color: AppColors.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(Icons.business, color: AppColors.primary, size: 20),
+                  child: Icon(
+                    Icons.business,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -291,7 +348,10 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
                       ),
                       Text(
                         'Hoy, ${_formatTime(msg['createdAt'])}',
-                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -299,9 +359,9 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Message body
           Text(
             msg['body'] ?? '',
@@ -311,22 +371,22 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
 
           const SizedBox(height: 16),
           if (_responses.isNotEmpty) _buildResponsesSection(),
-          
+
           // Interview details if applicable
           if (isInterview && msg['application']?['job'] != null) ...[
             const SizedBox(height: 24),
             _buildInterviewDetails(msg),
           ],
-          
+
           const SizedBox(height: 32),
-          
+
           // Response section
           const Text(
             '¿Podrás asistir?',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
-          
+
           _ResponseOption(
             icon: Icons.check_circle,
             iconColor: AppColors.success,
@@ -350,9 +410,9 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
             isSelected: _selectedResponse == 'help',
             onTap: () => setState(() => _selectedResponse = 'help'),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Optional message
           Text(
             'Respuesta opcional (escribe un mensaje corto)',
@@ -370,9 +430,9 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Send button
           SizedBox(
             width: double.infinity,
@@ -390,12 +450,15 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Text('Enviar respuesta'),
             ),
           ),
-          
+
           const SizedBox(height: 32),
         ],
       ),
@@ -416,12 +479,16 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
             'Modalidad: ${msg['application']?['job']?['modality'] ?? 'Presencial'}',
             style: const TextStyle(fontSize: 14),
           ),
-          if (msg['application']?['interviews'] != null && 
+          if (msg['application']?['interviews'] != null &&
               (msg['application']['interviews'] as List).isNotEmpty) ...[
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.calendar_today, size: 16, color: AppColors.textSecondary),
+                Icon(
+                  Icons.calendar_today,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 8),
                 Text('Fecha: Por confirmar'),
               ],
@@ -429,7 +496,11 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
+                Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 8),
                 Text('Hora: Por confirmar'),
               ],
@@ -437,7 +508,11 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 8),
                 Expanded(child: Text('Lugar: Por confirmar')),
               ],
@@ -498,8 +573,7 @@ class _ResponseOption extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            if (isSelected)
-              Icon(Icons.check_circle, color: iconColor),
+            if (isSelected) Icon(Icons.check_circle, color: iconColor),
           ],
         ),
       ),

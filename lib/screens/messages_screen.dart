@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../services/api_service.dart';
+import '../services/message_realtime_service.dart';
 import '../services/messages_service.dart';
 import '../widgets/bottom_nav_bar.dart';
 
@@ -17,21 +20,54 @@ class _MessagesScreenState extends State<MessagesScreen> {
   List<dynamic> _messages = [];
   bool _isLoading = true;
   String _filter = 'all';
+  MessageRealtimeService? _realtimeService;
+  StreamSubscription<Map<String, dynamic>>? _messageCreatedSub;
+  StreamSubscription<Map<String, dynamic>>? _messageUpdatedSub;
+  StreamSubscription<Map<String, dynamic>>? _messageRespondedSub;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
+    _connectRealtime();
   }
 
-  Future<void> _loadMessages() async {
-    setState(() => _isLoading = true);
-    
+  @override
+  void dispose() {
+    _messageCreatedSub?.cancel();
+    _messageUpdatedSub?.cancel();
+    _messageRespondedSub?.cancel();
+    _realtimeService?.dispose();
+    super.dispose();
+  }
+
+  void _connectRealtime() {
+    final api = context.read<ApiService>();
+    final realtimeService = MessageRealtimeService(api);
+    _realtimeService = realtimeService;
+    _messageCreatedSub = realtimeService.messageCreated.listen((_) {
+      _loadMessages(showLoading: false, showErrors: false);
+    });
+    _messageUpdatedSub = realtimeService.messageUpdated.listen((_) {
+      _loadMessages(showLoading: false, showErrors: false);
+    });
+    _messageRespondedSub = realtimeService.messageResponded.listen((_) {
+      _loadMessages(showLoading: false, showErrors: false);
+    });
+    realtimeService.connect();
+  }
+
+  Future<void> _loadMessages({
+    bool showLoading = true,
+    bool showErrors = true,
+  }) async {
+    if (showLoading) setState(() => _isLoading = true);
+
     try {
       final api = context.read<ApiService>();
       final messagesService = MessagesService(api);
       final response = await messagesService.getMessages(filter: _filter);
-      
+
       if (mounted) {
         setState(() {
           _messages = response;
@@ -40,10 +76,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar mensajes: $e')),
-        );
+        if (showLoading) setState(() => _isLoading = false);
+        if (showErrors) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al cargar mensajes: $e')),
+          );
+        }
       }
     }
   }
@@ -51,14 +89,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
   List<dynamic> get _filteredMessages {
     if (_filter == 'all') return _messages;
     if (_filter == 'important') {
-      return _messages.where((m) => 
-        m['type'] == 'interview_invitation' || m['type'] == 'document_request'
-      ).toList();
+      return _messages
+          .where(
+            (m) =>
+                m['type'] == 'interview_invitation' ||
+                m['type'] == 'document_request',
+          )
+          .toList();
     }
     if (_filter == 'unread') {
-      return _messages.where((m) => 
-        m['status'] == 'sent' || m['status'] == 'unread'
-      ).toList();
+      return _messages
+          .where((m) => m['status'] == 'sent' || m['status'] == 'unread')
+          .toList();
     }
     return _messages;
   }
@@ -92,17 +134,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredMessages.isEmpty
-                    ? _buildEmptyState()
-                    : RefreshIndicator(
-                        onRefresh: _loadMessages,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _filteredMessages.length,
-                          itemBuilder: (context, index) {
-                            return _MessageCard(message: _filteredMessages[index]);
-                          },
-                        ),
-                      ),
+                ? _buildEmptyState()
+                : RefreshIndicator(
+                    onRefresh: _loadMessages,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _filteredMessages.length,
+                      itemBuilder: (context, index) {
+                        return _MessageCard(message: _filteredMessages[index]);
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
@@ -154,10 +196,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           const SizedBox(height: 16),
           Text(
             'No tienes mensajes',
-            style: TextStyle(
-              fontSize: 16,
-              color: AppColors.textSecondary,
-            ),
+            style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -222,8 +261,9 @@ class _MessageCard extends StatelessWidget {
 
   const _MessageCard({required this.message});
 
-  bool get _isUnread => message['status'] == 'sent' || message['status'] == 'unread';
-  
+  bool get _isUnread =>
+      message['status'] == 'sent' || message['status'] == 'unread';
+
   String get _typeLabel {
     switch (message['type']) {
       case 'interview_invitation':
@@ -259,7 +299,9 @@ class _MessageCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: _isUnread ? AppColors.primary.withOpacity(0.35) : AppColors.border,
+            color: _isUnread
+                ? AppColors.primary.withOpacity(0.35)
+                : AppColors.border,
             width: _isUnread ? 1.4 : 1,
           ),
           boxShadow: [
@@ -281,11 +323,11 @@ class _MessageCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
-                message['type'] == 'interview_invitation' 
+                message['type'] == 'interview_invitation'
                     ? Icons.shield_outlined
                     : message['type'] == 'document_request'
-                        ? Icons.cleaning_services_outlined
-                        : Icons.inventory_2_outlined,
+                    ? Icons.cleaning_services_outlined
+                    : Icons.inventory_2_outlined,
                 color: AppColors.primary,
               ),
             ),
@@ -311,7 +353,10 @@ class _MessageCard extends StatelessWidget {
                       const SizedBox(width: 8),
                       Flexible(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: _statusColor.withOpacity(0.12),
                             borderRadius: BorderRadius.circular(14),
@@ -359,7 +404,10 @@ class _MessageCard extends StatelessWidget {
                 if (message['status'] == 'responded')
                   Container(
                     margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.success.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(10),
@@ -396,7 +444,7 @@ class _MessageCard extends StatelessWidget {
     final date = DateTime.parse(dateStr);
     final now = DateTime.now();
     final diff = now.difference(date);
-    
+
     if (diff.inDays > 0) {
       return '${date.day} ${_getMonth(date.month)}';
     }
@@ -404,8 +452,20 @@ class _MessageCard extends StatelessWidget {
   }
 
   String _getMonth(int month) {
-    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-                    'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const months = [
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic',
+    ];
     return months[month - 1];
   }
 }

@@ -19,7 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
@@ -48,7 +48,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final success = await authProvider.register(
       fullName: _fullNameController.text.trim(),
       phone: _formatPhone(_phoneController.text),
-      email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+      email: _emailController.text.trim().isEmpty
+          ? null
+          : _emailController.text.trim(),
       password: _passwordController.text,
     );
 
@@ -61,10 +63,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.error,
-      ),
+      SnackBar(content: Text(message), backgroundColor: AppColors.error),
     );
   }
 
@@ -97,9 +96,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     color: AppColors.textSecondary,
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 const Text(
                   'Crea tu cuenta',
                   style: TextStyle(
@@ -116,19 +115,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     color: AppColors.textSecondary,
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Nombre completo
                 _buildLabel('Nombre completo'),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _fullNameController,
                   textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(
-                    hintText: 'Ej. Juan Pérez',
-                    suffixIcon: _buildGBadge(),
-                  ),
+                  decoration: InputDecoration(hintText: 'Ej. Juan Pérez'),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'El nombre es requerido';
@@ -139,9 +135,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Teléfono
                 _buildLabel('Teléfono'),
                 const SizedBox(height: 8),
@@ -155,7 +151,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   decoration: InputDecoration(
                     hintText: '+505 8888 8888',
                     prefixText: '+505 ',
-                    suffixIcon: _buildGBadge(),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -167,22 +162,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Correo (opcional)
                 _buildLabel('Correo electrónico (opcional)'),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    hintText: 'ejemplo@correo.com',
-                    suffixIcon: _buildGBadge(),
-                  ),
+                  decoration: InputDecoration(hintText: 'ejemplo@correo.com'),
                   validator: (value) {
                     if (value != null && value.isNotEmpty) {
-                      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                      final emailRegex = RegExp(
+                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                      );
                       if (!emailRegex.hasMatch(value)) {
                         return 'Correo inválido';
                       }
@@ -190,9 +184,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Contraseña
                 _buildLabel('Contraseña'),
                 const SizedBox(height: 8),
@@ -206,12 +200,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       children: [
                         IconButton(
                           icon: Icon(
-                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                             color: AppColors.textSecondary,
                           ),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
-                        _buildGBadge(),
                       ],
                     ),
                   ),
@@ -225,9 +222,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Confirmar contraseña
                 _buildLabel('Confirmar contraseña'),
                 const SizedBox(height: 8),
@@ -241,12 +238,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       children: [
                         IconButton(
                           icon: Icon(
-                            _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                            _obscureConfirmPassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                             color: AppColors.textSecondary,
                           ),
-                          onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                          onPressed: () => setState(
+                            () => _obscureConfirmPassword =
+                                !_obscureConfirmPassword,
+                          ),
                         ),
-                        _buildGBadge(),
                       ],
                     ),
                   ),
@@ -257,9 +258,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Nota de seguridad
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -300,9 +301,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Botón Crear cuenta
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
@@ -338,9 +339,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     );
                   },
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Link Ya tengo cuenta
                 Center(
                   child: TextButton(
@@ -355,13 +356,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             color: AppColors.textSecondary,
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        _buildGBadgeSmall(),
                       ],
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
               ],
             ),
@@ -378,51 +377,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         fontSize: 14,
         fontWeight: FontWeight.w500,
         color: AppColors.textPrimary,
-      ),
-    );
-  }
-
-  Widget _buildGBadge() {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: Container(
-        width: 24,
-        height: 24,
-        decoration: const BoxDecoration(
-          color: Colors.orange,
-          shape: BoxShape.circle,
-        ),
-        child: const Center(
-          child: Text(
-            'G',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGBadgeSmall() {
-    return Container(
-      width: 20,
-      height: 20,
-      decoration: const BoxDecoration(
-        color: Colors.orange,
-        shape: BoxShape.circle,
-      ),
-      child: const Center(
-        child: Text(
-          'G',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
       ),
     );
   }

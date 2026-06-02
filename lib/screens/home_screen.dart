@@ -5,12 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../models/job.dart';
-import '../providers/auth_provider.dart';
 import '../providers/jobs_provider.dart';
 import '../services/api_service.dart';
 import '../services/applications_service.dart';
 import '../services/message_realtime_service.dart';
-import '../services/messages_service.dart';
 import '../services/saved_jobs_service.dart';
 import '../widgets/bottom_nav_bar.dart';
 
@@ -29,9 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Job> _savedJobs = [];
   String? _firstName;
   MessageRealtimeService? _realtimeService;
-  StreamSubscription<Map<String, dynamic>>? _messageCreatedSub;
-  StreamSubscription<Map<String, dynamic>>? _messageUpdatedSub;
-  StreamSubscription<Map<String, dynamic>>? _messageRespondedSub;
+  StreamSubscription<int>? _unreadCountSub;
 
   @override
   void initState() {
@@ -43,9 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    _messageCreatedSub?.cancel();
-    _messageUpdatedSub?.cancel();
-    _messageRespondedSub?.cancel();
+    _unreadCountSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -53,11 +47,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadData() async {
     final jobsProvider = context.read<JobsProvider>();
     await jobsProvider.loadCategories();
-    await jobsProvider.loadRecommendedJobs();
-    await _loadCandidateName();
-    await _loadUnreadCount();
-    await _loadApplicationsSummary();
     _connectRealtime();
+    await Future.wait([
+      jobsProvider.loadRecommendedJobs(),
+      _loadCandidateName(),
+      _loadApplicationsSummary(),
+      _realtimeService?.refreshUnreadCount() ?? Future.value(),
+    ]);
   }
 
   void _connectRealtime() {
@@ -65,16 +61,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final realtimeService = context.read<MessageRealtimeService>();
     _realtimeService = realtimeService;
-    _messageCreatedSub = realtimeService.messageCreated.listen((_) {
-      _loadUnreadCount();
-    });
-    _messageUpdatedSub = realtimeService.messageUpdated.listen((_) {
-      _loadUnreadCount();
-    });
-    _messageRespondedSub = realtimeService.messageResponded.listen((_) {
-      _loadUnreadCount();
+    _unreadCount = realtimeService.unreadCount;
+    _unreadCountSub = realtimeService.unreadCountStream.listen((count) {
+      if (mounted) setState(() => _unreadCount = count);
     });
     realtimeService.connect();
+    unawaited(realtimeService.refreshUnreadCount());
   }
 
   Future<void> _loadCandidateName() async {
@@ -87,18 +79,6 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {
       // Silenciar error de nombre para no bloquear home
     }
-  }
-
-  Future<void> _loadUnreadCount() async {
-    try {
-      final api = context.read<ApiService>();
-      final authProvider = context.read<AuthProvider>();
-      if (authProvider.isAuthenticated) {
-        final messagesService = MessagesService(api);
-        final count = await messagesService.getUnreadCount();
-        if (mounted) setState(() => _unreadCount = count);
-      }
-    } catch (_) {}
   }
 
   Future<void> _loadApplicationsSummary() async {

@@ -29,9 +29,12 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
     try {
       final api = context.read<ApiService>();
       final applicationsService = ApplicationsService(api);
-      
-      final summary = await applicationsService.getSummary();
-      final applications = await applicationsService.getMyApplications();
+      final results = await Future.wait([
+        applicationsService.getSummary(),
+        applicationsService.getMyApplications(),
+      ]);
+      final summary = results[0] as ApplicationSummary;
+      final applications = results[1] as List<Application>;
       
       if (mounted) {
         setState(() {

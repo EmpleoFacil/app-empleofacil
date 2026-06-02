@@ -9,6 +9,9 @@ class MessageRealtimeService {
   final ApiService _api;
   io.Socket? _socket;
   String? _lastToken;
+  int _unreadCount = 0;
+  Future<void>? _refreshUnreadCountRequest;
+  DateTime? _lastUnreadCountSyncAt;
 
   final _messageCreatedController =
       StreamController<Map<String, dynamic>>.broadcast();
@@ -16,6 +19,7 @@ class MessageRealtimeService {
       StreamController<Map<String, dynamic>>.broadcast();
   final _messageRespondedController =
       StreamController<Map<String, dynamic>>.broadcast();
+  final _unreadCountController = StreamController<int>.broadcast();
 
   MessageRealtimeService(this._api);
 
@@ -25,6 +29,8 @@ class MessageRealtimeService {
       _messageUpdatedController.stream;
   Stream<Map<String, dynamic>> get messageResponded =>
       _messageRespondedController.stream;
+  Stream<int> get unreadCountStream => _unreadCountController.stream;
+  int get unreadCount => _unreadCount;
 
   void connect() {
     final token = _api.accessToken;
@@ -57,6 +63,7 @@ class MessageRealtimeService {
     socket.connect();
     _socket = socket;
     _lastToken = token;
+    unawaited(refreshUnreadCount());
   }
 
   void subscribeToMessage(String messageId) {
@@ -79,6 +86,9 @@ class MessageRealtimeService {
     }
     _socket = null;
     _lastToken = null;
+    _refreshUnreadCountRequest = null;
+    _lastUnreadCountSyncAt = null;
+    _setUnreadCount(0);
   }
 
   void dispose() {
@@ -86,21 +96,85 @@ class MessageRealtimeService {
     _messageCreatedController.close();
     _messageUpdatedController.close();
     _messageRespondedController.close();
+    _unreadCountController.close();
   }
 
   void _emitCreated(dynamic data) {
     final payload = _asMap(data);
-    if (payload != null) _messageCreatedController.add(payload);
+    if (payload != null) {
+      _bumpUnreadCount(1);
+      _messageCreatedController.add(payload);
+    }
   }
 
   void _emitUpdated(dynamic data) {
     final payload = _asMap(data);
-    if (payload != null) _messageUpdatedController.add(payload);
+    if (payload != null) {
+      final status = payload['status'] as String?;
+      if (status == 'read' || status == 'responded') {
+        _bumpUnreadCount(-1);
+      } else {
+        unawaited(refreshUnreadCount(force: true));
+      }
+      _messageUpdatedController.add(payload);
+    }
   }
 
   void _emitResponded(dynamic data) {
     final payload = _asMap(data);
-    if (payload != null) _messageRespondedController.add(payload);
+    if (payload != null) {
+      _bumpUnreadCount(-1);
+      _messageRespondedController.add(payload);
+    }
+  }
+
+  Future<void> refreshUnreadCount({bool force = false}) {
+    final token = _api.accessToken;
+    if (token == null || token.isEmpty) {
+      _setUnreadCount(0);
+      return Future.value();
+    }
+
+    final now = DateTime.now();
+    if (!force && _refreshUnreadCountRequest != null) {
+      return _refreshUnreadCountRequest!;
+    }
+
+    if (!force &&
+        _lastUnreadCountSyncAt != null &&
+        now.difference(_lastUnreadCountSyncAt!) <
+            const Duration(seconds: 3)) {
+      return Future.value();
+    }
+
+    final request = _fetchUnreadCount();
+    _refreshUnreadCountRequest = request;
+    return request;
+  }
+
+  Future<void> _fetchUnreadCount() async {
+    try {
+      final response = await _api.get('/messages/me/unread-count');
+      final count = (response['unreadCount'] as num?)?.toInt() ?? 0;
+      _setUnreadCount(count);
+      _lastUnreadCountSyncAt = DateTime.now();
+    } catch (_) {
+      // Silenciar para no romper la UX por un badge
+    } finally {
+      _refreshUnreadCountRequest = null;
+    }
+  }
+
+  void _bumpUnreadCount(int delta) {
+    _setUnreadCount((_unreadCount + delta).clamp(0, 999));
+  }
+
+  void _setUnreadCount(int value) {
+    if (_unreadCount == value) return;
+    _unreadCount = value;
+    if (!_unreadCountController.isClosed) {
+      _unreadCountController.add(value);
+    }
   }
 
   Map<String, dynamic>? _asMap(dynamic data) {

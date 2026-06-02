@@ -20,6 +20,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   List<dynamic> _messages = [];
   bool _isLoading = true;
   String _filter = 'all';
+  Timer? _reloadDebounce;
   StreamSubscription<Map<String, dynamic>>? _messageCreatedSub;
   StreamSubscription<Map<String, dynamic>>? _messageUpdatedSub;
   StreamSubscription<Map<String, dynamic>>? _messageRespondedSub;
@@ -33,6 +34,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   void dispose() {
+    _reloadDebounce?.cancel();
     _messageCreatedSub?.cancel();
     _messageUpdatedSub?.cancel();
     _messageRespondedSub?.cancel();
@@ -42,15 +44,24 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void _connectRealtime() {
     final realtimeService = context.read<MessageRealtimeService>();
     _messageCreatedSub = realtimeService.messageCreated.listen((_) {
-      _loadMessages(showLoading: false, showErrors: false);
+      _scheduleRefresh();
     });
     _messageUpdatedSub = realtimeService.messageUpdated.listen((_) {
-      _loadMessages(showLoading: false, showErrors: false);
+      _scheduleRefresh();
     });
     _messageRespondedSub = realtimeService.messageResponded.listen((_) {
-      _loadMessages(showLoading: false, showErrors: false);
+      _scheduleRefresh();
     });
     realtimeService.connect();
+  }
+
+  void _scheduleRefresh() {
+    _reloadDebounce?.cancel();
+    _reloadDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (mounted) {
+        _loadMessages(showLoading: false, showErrors: false);
+      }
+    });
   }
 
   Future<void> _loadMessages({

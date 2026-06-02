@@ -5,9 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
-import '../services/api_service.dart';
 import '../services/message_realtime_service.dart';
-import '../services/messages_service.dart';
 
 class BottomNavBar extends StatefulWidget {
   final int currentIndex;
@@ -20,48 +18,30 @@ class BottomNavBar extends StatefulWidget {
 
 class _BottomNavBarState extends State<BottomNavBar> {
   int _unreadCount = 0;
-  StreamSubscription<Map<String, dynamic>>? _messageCreatedSub;
-  StreamSubscription<Map<String, dynamic>>? _messageUpdatedSub;
-  StreamSubscription<Map<String, dynamic>>? _messageRespondedSub;
+  StreamSubscription<int>? _unreadCountSub;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadUnreadCount();
       _connectRealtime();
     });
   }
 
   @override
   void dispose() {
-    _messageCreatedSub?.cancel();
-    _messageUpdatedSub?.cancel();
-    _messageRespondedSub?.cancel();
+    _unreadCountSub?.cancel();
     super.dispose();
-  }
-
-  Future<void> _loadUnreadCount() async {
-    try {
-      final api = context.read<ApiService>();
-      final messagesService = MessagesService(api);
-      final count = await messagesService.getUnreadCount();
-      if (mounted) setState(() => _unreadCount = count);
-    } catch (_) {}
   }
 
   void _connectRealtime() {
     final realtimeService = context.read<MessageRealtimeService>();
-    _messageCreatedSub = realtimeService.messageCreated.listen((_) {
-      _loadUnreadCount();
-    });
-    _messageUpdatedSub = realtimeService.messageUpdated.listen((_) {
-      _loadUnreadCount();
-    });
-    _messageRespondedSub = realtimeService.messageResponded.listen((_) {
-      _loadUnreadCount();
+    _unreadCount = realtimeService.unreadCount;
+    _unreadCountSub ??= realtimeService.unreadCountStream.listen((count) {
+      if (mounted) setState(() => _unreadCount = count);
     });
     realtimeService.connect();
+    unawaited(realtimeService.refreshUnreadCount());
   }
 
   @override

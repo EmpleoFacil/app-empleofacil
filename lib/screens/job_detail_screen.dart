@@ -43,11 +43,13 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   Future<void> _loadJob() async {
     try {
       final api = context.read<ApiService>();
-      final response = await api.get('/jobs/${widget.jobId}');
-      final job = Job.fromJson(response);
-      
       final applicationsService = ApplicationsService(api);
-      final myApplication = await applicationsService.getByJobForMe(widget.jobId);
+      final results = await Future.wait([
+        api.get('/jobs/${widget.jobId}'),
+        applicationsService.getByJobForMe(widget.jobId),
+      ]);
+      final job = Job.fromJson(results[0]);
+      final myApplication = results[1];
       
       if (mounted) {
         setState(() {
@@ -96,11 +98,20 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       
       // Check for required documents
       final documentsService = DocumentsService(api);
-      final myDocuments = await documentsService.getMyDocuments();
-      final documentTypes = await documentsService.getDocumentTypes();
+      final results = await Future.wait([
+        documentsService.getMyDocuments(),
+        documentsService.getDocumentTypes(),
+      ]);
+      final myDocuments = results[0] as List<CandidateDocument>;
+      final documentTypes = results[1] as List<DocumentType>;
       
-      final missingDocuments = documentTypes.where((type) {
-        return !myDocuments.any((doc) => doc.type == type.id && doc.status == 'approved');
+      final requiredTypes = documentTypes.where((type) => type.isRequired);
+      final missingDocuments = requiredTypes.where((type) {
+        return !myDocuments.any(
+          (doc) =>
+              doc.type == type.id &&
+              (doc.status == 'uploaded' || doc.status == 'approved'),
+        );
       }).toList();
       
       if (missingDocuments.isNotEmpty) {

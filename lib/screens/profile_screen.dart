@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
+import '../models/application.dart';
+import '../models/document.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/applications_service.dart';
@@ -47,26 +49,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadProfile() async {
     try {
       final api = context.read<ApiService>();
-      final response = await api.get('/candidates/me');
       final documentsService = DocumentsService(api);
       final applicationsService = ApplicationsService(api);
-
-      final types = await documentsService.getDocumentTypes();
-      final docs = await documentsService.getMyDocuments();
-      final summary = await applicationsService.getSummary();
+      final results = await Future.wait([
+        api.get('/candidates/me'),
+        documentsService.getDocumentTypes(),
+        documentsService.getMyDocuments(),
+        applicationsService.getMyApplications(),
+      ]);
+      final response = results[0] as Map<String, dynamic>;
+      final types = results[1] as List<DocumentType>;
+      final docs = results[2] as List<CandidateDocument>;
+      final applications = results[3] as List<Application>;
+      final completedDocumentTypes = docs
+          .where(
+            (doc) => doc.status == 'uploaded' || doc.status == 'approved',
+          )
+          .map((doc) => doc.type)
+          .toSet();
+      final validTypeIds = types.map((type) => type.id).toSet();
+      final activeApplications = applications.where((application) {
+        switch (application.status) {
+          case 'applied':
+          case 'reviewing':
+          case 'preselected':
+          case 'interview_scheduled':
+          case 'interview_confirmed':
+            return true;
+          default:
+            return false;
+        }
+      }).length;
 
       if (mounted) {
         setState(() {
-          _profile = response as Map<String, dynamic>;
+          _profile = response;
           _phoneController.text = _profile?['phone'] ?? '';
           _emailController.text = _profile?['user']?['email'] ?? '';
           _cityController.text = _profile?['city'] ?? '';
           _selectedAvailability = _profile?['availability'];
           _selectedJobType = _profile?['desiredJobType'];
           _docsTotal = types.length;
-          _docsCount = docs.length;
-          _appsActive =
-              summary.postulado + summary.enRevision + summary.entrevista;
+          _docsCount = completedDocumentTypes
+              .where(validTypeIds.contains)
+              .length;
+          _appsActive = activeApplications;
           _isLoading = false;
         });
       }

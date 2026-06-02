@@ -32,9 +32,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     try {
       final api = context.read<ApiService>();
       final documentsService = DocumentsService(api);
-      
-      final types = await documentsService.getDocumentTypes();
-      final docs = await documentsService.getMyDocuments();
+      final results = await Future.wait([
+        documentsService.getDocumentTypes(),
+        documentsService.getMyDocuments(),
+      ]);
+      final types = results[0] as List<DocumentType>;
+      final docs = results[1] as List<CandidateDocument>;
       
       if (mounted) {
         setState(() {

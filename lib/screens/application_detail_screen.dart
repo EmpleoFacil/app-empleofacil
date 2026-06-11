@@ -6,6 +6,7 @@ import '../config/theme.dart';
 import '../models/application.dart';
 import '../services/api_service.dart';
 import '../widgets/bottom_nav_bar.dart';
+import '../widgets/company_logo_avatar.dart';
 
 class ApplicationDetailScreen extends StatefulWidget {
   final String applicationId;
@@ -13,7 +14,8 @@ class ApplicationDetailScreen extends StatefulWidget {
   const ApplicationDetailScreen({super.key, required this.applicationId});
 
   @override
-  State<ApplicationDetailScreen> createState() => _ApplicationDetailScreenState();
+  State<ApplicationDetailScreen> createState() =>
+      _ApplicationDetailScreenState();
 }
 
 class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
@@ -33,7 +35,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
 
     try {
       final api = context.read<ApiService>();
-      final rawResponse = await api.get('/applications/${widget.applicationId}');
+      final rawResponse = await api.get(
+        '/applications/${widget.applicationId}',
+      );
       final rawApp = rawResponse as Map<String, dynamic>;
       final application = Application.fromJson(rawApp);
       final interview = await _resolveInterview(api, rawApp, application);
@@ -48,9 +52,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar detalle: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al cargar detalle: $e')));
       }
     }
   }
@@ -117,7 +121,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     }
 
     final interviews = rawApp['interviews'];
-    if (interviews is List && interviews.isNotEmpty && interviews.first is Map) {
+    if (interviews is List &&
+        interviews.isNotEmpty &&
+        interviews.first is Map) {
       return Map<String, dynamic>.from(interviews.first as Map);
     }
 
@@ -188,7 +194,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     final interviewId = _interviewId;
     if (interviewId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Entrevista no disponible para confirmar')),
+        const SnackBar(
+          content: Text('Entrevista no disponible para confirmar'),
+        ),
       );
       return;
     }
@@ -200,16 +208,16 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
       await api.patch('/interviews/$interviewId/confirm', {});
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Asistencia confirmada')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Asistencia confirmada')));
         await _loadData();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _isConfirming = false);
@@ -220,7 +228,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     final interviewId = _interviewId;
     if (interviewId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Entrevista no disponible para reprogramar')),
+        const SnackBar(
+          content: Text('Entrevista no disponible para reprogramar'),
+        ),
       );
       return;
     }
@@ -318,7 +328,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                     }
                     if (selectedDate == null || selectedTime == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Selecciona fecha y hora')),
+                        const SnackBar(
+                          content: Text('Selecciona fecha y hora'),
+                        ),
                       );
                       return;
                     }
@@ -332,10 +344,13 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                         selectedTime!.hour,
                         selectedTime!.minute,
                       );
-                      await api.patch('/interviews/$interviewId/reschedule-request', {
-                        'reason': reasonController.text,
-                        'requestedDate': requestedDate.toIso8601String(),
-                      });
+                      await api.patch(
+                        '/interviews/$interviewId/reschedule-request',
+                        {
+                          'reason': reasonController.text,
+                          'requestedDate': requestedDate.toIso8601String(),
+                        },
+                      );
 
                       if (mounted) {
                         Navigator.pop(modalContext);
@@ -345,9 +360,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                         await _loadData();
                       }
                     } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('Error: $e')));
                     }
                   },
                   child: const Text('Enviar solicitud'),
@@ -364,7 +379,10 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
   Future<void> _openMaps() async {
     final mapUrl = _interview?['mapUrl'] as String?;
     final meetingUrl = _interview?['meetingUrl'] as String?;
-    final modality = (_interview?['modality'] as String? ?? _application?.nextInterview?.modality)?.toLowerCase();
+    final modality =
+        (_interview?['modality'] as String? ??
+                _application?.nextInterview?.modality)
+            ?.toLowerCase();
 
     try {
       if (mapUrl != null && mapUrl.isNotEmpty) {
@@ -385,7 +403,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
         final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
         if (!ok && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No se pudo abrir el enlace de la reunión')),
+            const SnackBar(
+              content: Text('No se pudo abrir el enlace de la reunión'),
+            ),
           );
         }
         return;
@@ -402,27 +422,31 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
       }
 
       final encoded = Uri.encodeComponent(location);
-      final webUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$encoded');
+      final webUri = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=$encoded',
+      );
       final ok = await launchUrl(webUri, mode: LaunchMode.externalApplication);
       if (!ok && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo abrir Maps')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('No se pudo abrir Maps')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al abrir ubicación: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al abrir ubicación: $e')));
       }
     }
   }
 
   String _interviewLocationName() {
-    final fromInterview = (_interview?['location'] ??
-            _interview?['locationName'] ??
-            _interview?['place'] ??
-            '') as String;
+    final fromInterview =
+        (_interview?['location'] ??
+                _interview?['locationName'] ??
+                _interview?['place'] ??
+                '')
+            as String;
     if (fromInterview.isNotEmpty) return fromInterview;
     return _application?.nextInterview?.location ?? '';
   }
@@ -431,14 +455,17 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     return (_interview?['address'] ??
             _interview?['locationAddress'] ??
             _interview?['fullAddress'] ??
-            '') as String;
+            '')
+        as String;
   }
 
   String _interviewerName() {
-    final direct = _interview?['interviewerName'] ??
+    final direct =
+        _interview?['interviewerName'] ??
         _interview?['interviewer'] ??
         _interview?['interviewerFullName'];
-    if (direct != null && direct.toString().isNotEmpty) return direct.toString();
+    if (direct != null && direct.toString().isNotEmpty)
+      return direct.toString();
 
     final user = _interview?['responsibleUser'];
     if (user is Map && user['fullName'] != null) {
@@ -452,7 +479,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
             _interview?['contactPhoneNumber'] ??
             _interview?['phone'] ??
             _interview?['notesForCandidate'] ??
-            'Por confirmar') as String;
+            'Por confirmar')
+        as String;
   }
 
   String _interviewModality() {
@@ -492,8 +520,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _application == null
-                  ? const Center(child: Text('Postulación no encontrada'))
-                  : _buildContent(),
+              ? const Center(child: Text('Postulación no encontrada'))
+              : _buildContent(),
         ),
         bottomNavigationBar: const BottomNavBar(currentIndex: 1),
       ),
@@ -537,9 +565,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
           Text(
             'Detalle de postulación',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontSize: 26,
-                ),
+              color: AppColors.textPrimary,
+              fontSize: 26,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
@@ -565,14 +593,14 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: AppColors.primarySoft,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(Icons.shield_outlined, color: AppColors.primary, size: 28),
+                    CompanyLogoAvatar(
+                      logoUrl: app.job?.company?.logoUrl,
+                      companyName: app.job?.company?.name ?? 'Empresa',
+                      size: 52,
+                      borderRadius: 14,
+                      fallbackIcon: Icons.shield_outlined,
+                      backgroundColor: AppColors.primarySoft,
+                      iconSize: 28,
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -599,7 +627,11 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
+                              Icon(
+                                Icons.location_on_outlined,
+                                size: 14,
+                                color: AppColors.textSecondary,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 app.job?.city ?? 'Nicaragua',
@@ -619,7 +651,10 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                   const SizedBox(height: 16),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFEAF8EF),
                       borderRadius: BorderRadius.circular(12),
@@ -627,7 +662,11 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.event_outlined, size: 18, color: AppColors.success),
+                        Icon(
+                          Icons.event_outlined,
+                          size: 18,
+                          color: AppColors.success,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           statusLabel,
@@ -654,8 +693,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                   _buildDetailRow(
                     Icons.location_on_outlined,
                     'Lugar',
-                    _interviewLocationName().isEmpty ? 'Por confirmar' : _interviewLocationName(),
-                    subtitle: _interviewAddress().isNotEmpty ? _interviewAddress() : null,
+                    _interviewLocationName().isEmpty
+                        ? 'Por confirmar'
+                        : _interviewLocationName(),
+                    subtitle: _interviewAddress().isNotEmpty
+                        ? _interviewAddress()
+                        : null,
                   ),
                   _buildDetailRow(
                     Icons.work_outline,
@@ -682,7 +725,10 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : const Icon(Icons.check_circle_outline, size: 20),
                       label: const Text('Confirmar asistencia'),
@@ -798,8 +844,18 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     if (dateStr == null) return 'Por confirmar';
     final date = DateTime.parse(dateStr);
     const months = [
-      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+      'enero',
+      'febrero',
+      'marzo',
+      'abril',
+      'mayo',
+      'junio',
+      'julio',
+      'agosto',
+      'septiembre',
+      'octubre',
+      'noviembre',
+      'diciembre',
     ];
     return '${date.day} de ${months[date.month - 1]} de ${date.year}';
   }
@@ -807,7 +863,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
   String _formatTime(String? dateStr) {
     if (dateStr == null) return 'Por confirmar';
     final date = DateTime.parse(dateStr);
-    final hour = date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
+    final hour = date.hour > 12
+        ? date.hour - 12
+        : (date.hour == 0 ? 12 : date.hour);
     final period = date.hour >= 12 ? 'p.m.' : 'a.m.';
     return '${hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')} $period';
   }

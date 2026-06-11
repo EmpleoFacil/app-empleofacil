@@ -6,6 +6,7 @@ import '../models/application.dart';
 import '../services/api_service.dart';
 import '../services/applications_service.dart';
 import '../widgets/bottom_nav_bar.dart';
+import '../widgets/company_logo_avatar.dart';
 
 class ApplicationsScreen extends StatefulWidget {
   const ApplicationsScreen({super.key});
@@ -35,7 +36,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
       ]);
       final summary = results[0] as ApplicationSummary;
       final applications = results[1] as List<Application>;
-      
+
       if (mounted) {
         setState(() {
           _summary = summary;
@@ -79,7 +80,10 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                     const SizedBox(height: 6),
                     Text(
                       'Resumen de tu proceso',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 22),
                     if (_summary != null) _buildSummaryCards(),
@@ -88,17 +92,27 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                     if (_applications.isNotEmpty) ...[
                       const Text(
                         'Otras postulaciones',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                       const SizedBox(height: 12),
-                      ..._applications.map((app) => _ApplicationCard(application: app)),
+                      ..._applications.map(
+                        (app) => _ApplicationCard(application: app),
+                      ),
                     ] else ...[
                       Center(
                         child: Padding(
                           padding: const EdgeInsets.all(32),
                           child: Column(
                             children: [
-                              Icon(Icons.assignment_outlined, size: 64, color: AppColors.textSecondary),
+                              Icon(
+                                Icons.assignment_outlined,
+                                size: 64,
+                                color: AppColors.textSecondary,
+                              ),
                               const SizedBox(height: 16),
                               Text(
                                 'No tienes postulaciones',
@@ -163,12 +177,16 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
   }
 
   List<Widget> _buildScheduledInterviews() {
-    final withInterview = _applications.where((a) => 
-        a.status == 'interview_scheduled' || a.status == 'interview_confirmed'
-    ).toList();
-    
+    final withInterview = _applications
+        .where(
+          (a) =>
+              a.status == 'interview_scheduled' ||
+              a.status == 'interview_confirmed',
+        )
+        .toList();
+
     if (withInterview.isEmpty) return [];
-    
+
     return [
       const Text(
         'Entrevista programada',
@@ -247,14 +265,17 @@ class _InterviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final interview = application.nextInterview;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withOpacity(0.25), width: 1.5),
+        border: Border.all(
+          color: AppColors.primary.withOpacity(0.25),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -268,14 +289,12 @@ class _InterviewCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.shield, color: AppColors.primary),
+              CompanyLogoAvatar(
+                logoUrl: application.job?.company?.logoUrl,
+                companyName: application.job?.company?.name ?? 'Empresa',
+                size: 48,
+                borderRadius: 8,
+                fallbackIcon: Icons.shield,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -332,14 +351,22 @@ class _InterviewCard extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
+                Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   '${interview.date.hour}:${interview.date.minute.toString().padLeft(2, '0')} a.m.',
                   style: TextStyle(color: AppColors.textSecondary),
                 ),
                 const SizedBox(width: 16),
-                Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
@@ -365,8 +392,20 @@ class _InterviewCard extends StatelessWidget {
   }
 
   String _getMonthName(int month) {
-    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 
-                    'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const months = [
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic',
+    ];
     return months[month - 1];
   }
 }
@@ -416,14 +455,12 @@ class _ApplicationCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(Icons.business, color: AppColors.primary),
+            CompanyLogoAvatar(
+              logoUrl: application.job?.company?.logoUrl,
+              companyName: application.job?.company?.name ?? 'Empresa',
+              size: 48,
+              borderRadius: 8,
+              fallbackIcon: Icons.business,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -452,7 +489,10 @@ class _ApplicationCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: _getStatusColor().withOpacity(0.1),
                     borderRadius: BorderRadius.circular(4),
@@ -469,7 +509,9 @@ class _ApplicationCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 if (application.latestMessage != null)
                   TextButton(
-                    onPressed: () => context.go('/messages/${application.latestMessage!.id}'),
+                    onPressed: () => context.go(
+                      '/messages/${application.latestMessage!.id}',
+                    ),
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
                       minimumSize: Size.zero,
@@ -477,10 +519,7 @@ class _ApplicationCard extends StatelessWidget {
                     ),
                     child: Text(
                       'Ver mensaje',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.primary,
-                      ),
+                      style: TextStyle(fontSize: 12, color: AppColors.primary),
                     ),
                   ),
               ],

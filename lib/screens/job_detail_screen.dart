@@ -8,6 +8,7 @@ import '../services/applications_service.dart';
 import '../services/saved_jobs_service.dart';
 import '../services/documents_service.dart';
 import '../models/document.dart';
+import '../widgets/company_logo_avatar.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final String jobId;
@@ -50,7 +51,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       ]);
       final job = Job.fromJson(results[0]);
       final myApplication = results[1];
-      
+
       if (mounted) {
         setState(() {
           _job = job;
@@ -62,9 +63,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar vacante: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al cargar vacante: $e')));
       }
     }
   }
@@ -73,29 +74,29 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     try {
       final api = context.read<ApiService>();
       final savedJobsService = SavedJobsService(api);
-      
+
       if (_isSaved) {
         await savedJobsService.unsave(widget.jobId);
       } else {
         await savedJobsService.save(widget.jobId);
       }
-      
+
       if (mounted) setState(() => _isSaved = !_isSaved);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
 
   Future<void> _apply() async {
     setState(() => _isApplying = true);
-    
+
     try {
       final api = context.read<ApiService>();
-      
+
       // Check for required documents
       final documentsService = DocumentsService(api);
       final results = await Future.wait([
@@ -104,7 +105,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       ]);
       final myDocuments = results[0] as List<CandidateDocument>;
       final documentTypes = results[1] as List<DocumentType>;
-      
+
       final requiredTypes = documentTypes.where((type) => type.isRequired);
       final missingDocuments = requiredTypes.where((type) {
         return !myDocuments.any(
@@ -113,7 +114,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               (doc.status == 'uploaded' || doc.status == 'approved'),
         );
       }).toList();
-      
+
       if (missingDocuments.isNotEmpty) {
         if (mounted) {
           setState(() => _isApplying = false);
@@ -121,10 +122,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         }
         return;
       }
-      
+
       final applicationsService = ApplicationsService(api);
       await applicationsService.apply(widget.jobId);
-      
+
       if (mounted) {
         setState(() {
           _hasApplied = true;
@@ -135,9 +136,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isApplying = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al postularte: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al postularte: $e')));
       }
     }
   }
@@ -202,7 +203,11 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 color: const Color(0xFFFFA000).withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.warning, color: Color(0xFFFFA000), size: 48),
+              child: const Icon(
+                Icons.warning,
+                color: Color(0xFFFFA000),
+                size: 48,
+              ),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -216,21 +221,23 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               style: TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),
-            ...missingDocuments.map((doc) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  const Icon(Icons.circle, size: 8, color: Color(0xFFFFA000)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      doc.label,
-                      style: const TextStyle(fontSize: 14),
+            ...missingDocuments.map(
+              (doc) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.circle, size: 8, color: Color(0xFFFFA000)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        doc.label,
+                        style: const TextStyle(fontSize: 14),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            )),
+            ),
           ],
         ),
         actions: [
@@ -281,8 +288,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _job == null
-                ? const Center(child: Text('Vacante no encontrada'))
-                : _buildContent(),
+            ? const Center(child: Text('Vacante no encontrada'))
+            : _buildContent(),
         bottomNavigationBar: _job != null ? _buildBottomBar() : null,
       ),
     );
@@ -290,7 +297,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
   Widget _buildContent() {
     final job = _job!;
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -300,14 +307,13 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           Center(
             child: Column(
               children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(Icons.shield, color: AppColors.primary, size: 40),
+                CompanyLogoAvatar(
+                  logoUrl: job.company?.logoUrl,
+                  companyName: job.company?.name ?? 'Empresa',
+                  size: 80,
+                  borderRadius: 16,
+                  fallbackIcon: Icons.shield,
+                  iconSize: 40,
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -330,7 +336,11 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: 16,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       job.city ?? 'Nicaragua',
@@ -349,21 +359,24 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Tags
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildTag(Icons.access_time, job.employmentType ?? 'Tiempo completo'),
+              _buildTag(
+                Icons.access_time,
+                job.employmentType ?? 'Tiempo completo',
+              ),
               const SizedBox(width: 8),
               _buildTag(Icons.schedule, job.modality ?? 'Turnos rotativos'),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Lo principal
           const Text(
             'Lo principal',
@@ -373,9 +386,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           _buildBullet('Ingreso inmediato'),
           _buildBullet('Pago puntual'),
           _buildBullet('Con o sin experiencia'),
-          
+
           const SizedBox(height: 24),
-          
+
           // Qué harás
           const Text(
             'Qué harás',
@@ -383,15 +396,13 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            job.description ?? 'Vigilar y proteger las instalaciones, controlar accesos y registrar novedades. Asegurar el cumplimiento de normas de seguridad.',
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              height: 1.5,
-            ),
+            job.description ??
+                'Vigilar y proteger las instalaciones, controlar accesos y registrar novedades. Asegurar el cumplimiento de normas de seguridad.',
+            style: TextStyle(color: AppColors.textSecondary, height: 1.5),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Nota documentos
           Container(
             padding: const EdgeInsets.all(16),
@@ -412,7 +423,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 100),
         ],
       ),
@@ -480,12 +491,17 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : Icon(_hasApplied ? Icons.check : Icons.send),
                 label: Text(_hasApplied ? 'Ya aplicaste' : 'Postularme'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _hasApplied ? AppColors.success : AppColors.primary,
+                  backgroundColor: _hasApplied
+                      ? AppColors.success
+                      : AppColors.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

@@ -6,6 +6,7 @@ import '../models/job.dart';
 import '../services/api_service.dart';
 import '../services/jobs_service.dart';
 import '../widgets/bottom_nav_bar.dart';
+import '../widgets/company_logo_avatar.dart';
 
 class SearchResultsScreen extends StatefulWidget {
   final String query;
@@ -101,14 +102,40 @@ class _JobCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              job.title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              job.company?.name ?? '',
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CompanyLogoAvatar(
+                  logoUrl: job.company?.logoUrl,
+                  companyName: job.company?.name ?? 'Empresa',
+                  size: 48,
+                  borderRadius: 10,
+                  fallbackIcon: Icons.business,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        job.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        job.company?.name ?? '',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Row(

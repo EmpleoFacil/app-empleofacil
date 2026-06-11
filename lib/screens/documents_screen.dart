@@ -10,6 +10,7 @@ import '../config/theme.dart';
 import '../models/document.dart';
 import '../services/api_service.dart';
 import '../services/documents_service.dart';
+import 'document_capture_screen.dart';
 
 class DocumentsScreen extends StatefulWidget {
   const DocumentsScreen({super.key});
@@ -66,6 +67,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     }
   }
 
+  bool _usesGuidedCapture(String typeId) {
+    return typeId == 'id_front' || typeId == 'id_back';
+  }
+
   void _showDocumentActions(DocumentType type) {
     showModalBottomSheet(
       context: context,
@@ -85,7 +90,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           document: _getDocumentForType(type.id),
           onTakePhoto: () {
             Navigator.pop(sheetContext);
-            _pickAndUploadFromCamera(type);
+            _handleTakePhoto(type);
           },
           onUploadFile: () {
             Navigator.pop(sheetContext);
@@ -102,9 +107,45 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     );
   }
 
+  Future<void> _handleTakePhoto(DocumentType type) async {
+    if (_usesGuidedCapture(type.id)) {
+      await _pickAndUploadFromGuidedCamera(type);
+      return;
+    }
+
+    await _pickAndUploadFromCamera(type);
+  }
+
+  Future<void> _pickAndUploadFromGuidedCamera(DocumentType type) async {
+    try {
+      final result = await context.push<String>(
+        '/documents/capture/${Uri.encodeComponent(type.id)}',
+      );
+
+      if (!mounted || result == null) return;
+
+      if (result == DocumentCaptureScreen.uploadFallbackResult) {
+        await _pickAndUploadFile(type);
+        return;
+      }
+
+      await _uploadDocumentPath(
+        type: type,
+        filePath: result,
+        filename: result.split(RegExp(r'[\\/]')).last,
+        successMessage: '${type.label} cargado con foto',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al abrir cámara guiada: $e')),
+      );
+    }
+  }
+
   Future<void> _pickAndUploadFromCamera(DocumentType type) async {
     try {
-      final documentsService = DocumentsService(context.read<ApiService>());
       final picked = await _picker.pickImage(
         source: ImageSource.camera,
         imageQuality: 85,
@@ -112,19 +153,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       );
       if (picked == null) return;
 
-      final file = await http.MultipartFile.fromPath(
-        'file',
-        picked.path,
+      await _uploadDocumentPath(
+        type: type,
+        filePath: picked.path,
         filename: picked.name,
+        successMessage: '${type.label} cargado con foto',
       );
-      await documentsService.upload(type: type.id, file: file, replace: true);
-      await _loadData();
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('${type.label} cargado con foto')));
     } catch (e) {
       if (!mounted) return;
 
@@ -132,6 +166,28 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('Error al subir documento: $e')));
     }
+  }
+
+  Future<void> _uploadDocumentPath({
+    required DocumentType type,
+    required String filePath,
+    required String filename,
+    required String successMessage,
+  }) async {
+    final documentsService = DocumentsService(context.read<ApiService>());
+    final file = await http.MultipartFile.fromPath(
+      'file',
+      filePath,
+      filename: filename,
+    );
+    await documentsService.upload(type: type.id, file: file, replace: true);
+    await _loadData();
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(successMessage)));
   }
 
   Future<void> _pickAndUploadFile(DocumentType type) async {

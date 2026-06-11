@@ -11,6 +11,7 @@ import '../services/applications_service.dart';
 import '../services/message_realtime_service.dart';
 import '../services/saved_jobs_service.dart';
 import '../widgets/bottom_nav_bar.dart';
+import '../widgets/company_logo_avatar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -585,16 +586,12 @@ class _JobCardState extends State<_JobCard> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Center(
-                    child: Icon(Icons.business, color: AppColors.primary),
-                  ),
+                CompanyLogoAvatar(
+                  logoUrl: widget.job.company?.logoUrl,
+                  companyName: widget.job.company?.name ?? 'Empresa',
+                  size: 48,
+                  borderRadius: 10,
+                  fallbackIcon: Icons.business,
                 ),
                 const SizedBox(width: 12),
                 Expanded(

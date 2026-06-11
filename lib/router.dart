@@ -15,6 +15,7 @@ import 'screens/profile_screen.dart';
 import 'screens/search_results_screen.dart';
 import 'screens/session_bootstrap_screen.dart';
 import 'screens/cv_builder_screen.dart';
+import 'screens/document_capture_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/bootstrap',
@@ -59,6 +60,11 @@ final router = GoRouter(
     GoRoute(
       path: '/documents/cv-builder',
       builder: (context, state) => const CvBuilderScreen(),
+    ),
+    GoRoute(
+      path: '/documents/capture/:type',
+      builder: (context, state) =>
+          DocumentCaptureScreen(documentTypeId: state.pathParameters['type']!),
     ),
     GoRoute(
       path: '/applications',

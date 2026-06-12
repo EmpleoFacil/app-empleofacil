@@ -6,8 +6,12 @@ import 'providers/jobs_provider.dart';
 import 'services/api_service.dart';
 import 'services/message_realtime_service.dart';
 import 'router.dart';
+import 'config/api_config.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ApiConfig.checkBackend();
+
   final apiService = ApiService();
   final realtimeService = MessageRealtimeService(apiService);
   runApp(MyApp(apiService: apiService, realtimeService: realtimeService));
